@@ -23,20 +23,17 @@
 #    see http://www.gnu.org/licenses/.
 #
 ##############################################################################
-from base.models import academic_calendar
-from base.models import academic_year
-from base.models import campus
-from base.models import external_offer
-from base.models import learning_unit
-from base.models import learning_unit_component
-from base.models import learning_unit_enrollment
-from base.models import learning_unit_year
-from base.models import offer
-from base.models import offer_enrollment
-from base.models import offer_year
-from base.models import offer_year_domain
-from base.models import organization
-from base.models import person
-from base.models import session_exam_calendar
-from base.models import student
-from base.models import tutor
+DELIBERATION = "DELIBERATION"
+DISSERTATION_SUBMISSION = "DISSERTATION_SUBMISSION"
+EXAM_ENROLLMENTS = "EXAM_ENROLLMENTS"
+SCORES_EXAM_DIFFUSION = "SCORES_EXAM_DIFFUSION"
+SCORES_EXAM_SUBMISSION = "SCORES_EXAM_SUBMISSION"
+TEACHING_CHARGE_APPLICATION = "TEACHING_CHARGE_APPLICATION"
+
+ACADEMIC_CALENDAR_TYPES = (
+    (DELIBERATION, DELIBERATION),
+    (DISSERTATION_SUBMISSION, DISSERTATION_SUBMISSION),
+    (EXAM_ENROLLMENTS, EXAM_ENROLLMENTS),
+    (SCORES_EXAM_DIFFUSION, SCORES_EXAM_DIFFUSION),
+    (SCORES_EXAM_SUBMISSION, SCORES_EXAM_SUBMISSION),
+    (TEACHING_CHARGE_APPLICATION, TEACHING_CHARGE_APPLICATION))
