@@ -25,6 +25,7 @@
 #
 ############################################################################
 import json
+import datetime
 
 from django.core.exceptions import PermissionDenied, MultipleObjectsReturned
 from django.shortcuts import redirect
@@ -32,6 +33,7 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.utils.translation import ugettext as _
 
 from base.models import student
+from base.models import session_exam_calendar
 from performance import models as mdl_performance
 from base.forms.base_forms import RegistrationIdForm
 from base.views import layout
@@ -61,7 +63,7 @@ def view_performance_home(request):
 def __make_not_authorized_message(stud_perf):
     authorized = stud_perf.authorized if stud_perf else None
     session_month = stud_perf.session_locked if stud_perf else None
-    if not authorized and session_month:
+    if is_period_score_exam_submission_opened(session_month) and not authorized and session_month:
         return _('performance_result_note_not_autorized').format(_(session_month))
     else:
         return None
@@ -84,8 +86,9 @@ def display_result_for_specific_student_performance(request, pk):
     creation_date = stud_perf.creation_date if stud_perf else None
     update_date = stud_perf.update_date if stud_perf else None
     fetch_timed_out = stud_perf.fetch_timed_out if stud_perf else None
+    print('ici2')
     not_authorized_message = __make_not_authorized_message(stud_perf)
-
+    fetch_timed_out=None#ut
     return layout.render(request, "performance_result.html", {"results": document,
                                                               "creation_date": creation_date,
                                                               "update_date": update_date,
@@ -140,6 +143,7 @@ def visualize_student_result(request, pk):
     creation_date = stud_perf.creation_date if stud_perf else None
     update_date = stud_perf.update_date if stud_perf else None
     fetch_timed_out = stud_perf.fetch_timed_out if stud_perf else None
+    print('ici1')
     not_authorized_message = __make_not_authorized_message(stud_perf)
 
     return layout.render(request, "performance_result.html", {"results": document,
@@ -180,3 +184,11 @@ def convert_student_performance_to_dic(student_performance_obj):
 
 def check_right_access(student_performance, student):
     return student_performance.registration_id == student.registration_id
+
+
+def is_period_score_exam_submission_opened(session_month):
+    date = datetime.date.today()
+    current_session_ex = session_exam_calendar.current_session_exam()
+    current_session_ex = session_exam_calendar.SessionExamCalendar.objects.all().first()
+    print(current_session_ex)
+    return True
