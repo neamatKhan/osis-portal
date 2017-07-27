@@ -60,3 +60,10 @@ def find_by_student_offer(a_student, offer_year):
 
 def find_by_student_academic_year(a_student, an_academic_year):
     return OfferEnrollment.objects.filter(student=a_student, offer_year__academic_year=an_academic_year)
+
+
+def find_by_id(an_id):
+    try:
+        return OfferEnrollment.objects.get(pk=an_id)
+    except ObjectDoesNotExist:
+        return None

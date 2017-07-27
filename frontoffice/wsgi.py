@@ -30,6 +30,7 @@ import logging
 import os
 import dotenv
 
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if 'test' in sys.argv:
     os.environ.setdefault('TESTING', 'True')
@@ -97,5 +98,16 @@ if hasattr(settings, 'QUEUES') and settings.QUEUES:
             common_queue_listener.SynchronousConsumerThread(
                 settings.QUEUES.get('QUEUES_NAME').get('SCORE_ENCODING_PDF_RESPONSE'),
                 insert_or_update_document_from_queue).start()
+        except (ConnectionClosed, ChannelClosed, AMQPConnectionError, ConnectionError) as e:
+            LOGGER.exception("Couldn't connect to the QueueServer")
+
+    # Thread in wich is running the listening of the queue used to receive the json of exam_enrollment from epc
+    if 'exam_enrollment' in settings.INSTALLED_APPS:
+        from exam_enrollment.views.main import update_document_from_queue
+        try:
+            common_queue_listener.SynchronousConsumerThread(
+                settings.QUEUES.get('QUEUES_NAME').get('EXAM_ENROLLMENT_FORM_RESPONSE'),
+                update_document_from_queue).start()
+
         except (ConnectionClosed, ChannelClosed, AMQPConnectionError, ConnectionError) as e:
             LOGGER.exception("Couldn't connect to the QueueServer")

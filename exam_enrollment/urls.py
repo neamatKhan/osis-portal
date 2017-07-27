@@ -30,4 +30,8 @@ urlpatterns = [
     url(r'^$', main.choose_offer, name='exam_enrollment_offer_choice'),
     url(r'^direct/$', main.choose_offer_direct, name='exam_enrollment_form_direct'),
     url(r'^([0-9]+)/form/$', main.exam_enrollment_form, name='exam_enrollment_form'),
+    url(r'^exam_enrollment/my_exam_enrollments/ask/$', main.ask_exam_enrollment, name='ask_exam_enrollment'),
+    url(r'^exam_enrollment/my_exam_enrollments/check/$', main.check_exam_enrollment, name='check_exam_enrollment'),
+    url(r'^exam_enrollment/my_exam_enrollments/view/$', main.view_exam_enrollment, name='view_exam_enrollment'),
+
 ]

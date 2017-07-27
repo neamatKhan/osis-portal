@@ -55,5 +55,114 @@
                fitWidth: true
             });
          });
+
+         var lnk_ask_exam_enrollment = document.getElementById("lnk_ask_exam_enrollment");
+         var status_message = document.getElementById("status_message");
+         var message_box = document.getElementById("message_box");
+
+         var counter = 0;
+         var max_loops = 60;
+         var delay = 1000;
+
+         function show(element, display) {
+             element.style.display = display;
+         }
+         function disable(element) {
+             element.disabled = true;
+         }
+         function enable(element) {
+             element.disabled = false;
+         }
+         function hide(element) {
+             element.style.display = 'none';
+         }
+         function show_message_in_container(container, message) {
+             container.innerHTML = message;
+         }
+         function set_class(element, class_attributes) {
+             element.className = class_attributes;
+         }
+
+         window.onload = function() {
+             var scores_in_db_and_uptodate = '{{scores_in_db_and_uptodate|safe}}'
+             var scores_sheets_unavailable = '{{scores_sheets_unavailable|safe}}'
+             var in_error = '{{in_error|safe}}'
+             scores_in_db_and_uptodate='True';
+             scores_sheets_unavailable='True';
+             if(scores_in_db_and_uptodate == 'False'){
+                 hide(message_box);
+                 show(lnk_ask_exam_enrollment, 'inline-block');
+             }
+             else if(scores_sheets_unavailable == 'True') {
+                 show(message_box, 'block');
+                 set_class(message_box, "alert alert-warning");
+                 show_message_in_container(status_message, "{% trans 'scores_sheet_unavailable' %}");
+                 show(lnk_ask_exam_enrollment, 'inline-block');
+             }
+             else{
+                 set_class(message_box, "alert alert-success");
+                 show_message_in_container(status_message, "{% trans 'scores_sheet_ready' %}");
+
+             }
+             $('#er').val(in_error);
+         };
+
+         function ask_exam_enrollment() {
+             disable(lnk_ask_exam_enrollment);
+             show(message_box, 'block');
+             set_class(message_box, "alert alert-info");
+             show_message_in_container(status_message, "<i class=\"fa fa-spinner fa-spin fa-fw\"></i> {% trans 'scores_sheet_building' %}");
+             send_request();
+         }
+
+         function send_request(){
+             $.ajax({
+                 method: 'POST',
+                 url: "{% url 'ask_exam_enrollment' %}",
+                 success: function () {
+                     check_result();
+                 },
+                 error: function () {
+                     set_class(message_box, "alert alert-warning");
+                     show_message_in_container(status_message, "{% trans 'scores_sheet_unavailable' %} ");
+                     enable(lnk_ask_exam_enrollment);
+                 }
+             });
+         }
+         function page_display(){
+             $('#form_view_exam_enrollment').submit();
+         }
+
+         function check_result(){
+             $.ajax({
+                 method: 'POST',
+                 url: "{% url 'check_exam_enrollment' %}",
+                 success: function () {
+                     set_class(message_box, "alert alert-success");
+                     show_message_in_container(status_message, "{% trans 'scores_sheet_ready' %}");
+                     hide(lnk_ask_exam_enrollment);
+                     $('#er').val({{ in_error }});
+                     page_display()
+
+                 },
+                 error: function () {
+                     counter++;
+                     if (counter < max_loops) {
+                         setTimeout(function() {
+                             check_result();
+                             $('#er').val({{ in_error }});
+                         }, delay);
+                     }
+                     else {
+                         set_class(message_box, "alert alert-warning");
+                         show_message_in_container(status_message, "{% trans 'scores_sheet_unavailable' %} ");
+                         enable(lnk_ask_exam_enrollment);
+                     }
+                 }
+             });
+         }
     </script>
 {% endblock %}
+
+
+

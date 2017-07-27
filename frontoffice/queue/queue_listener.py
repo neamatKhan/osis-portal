@@ -537,3 +537,12 @@ class ExampleConsumer(object):
         """This method closes the connection to RabbitMQ."""
         logger.debug('Closing connection')
         self._connection.close()
+
+
+
+
+class ExamEnrollmentFormResponseClient(Client):
+    def __init__(self):
+        queue_name = settings.QUEUES.get('QUEUES_NAME').get('EXAM_ENROLLMENT_FORM_RESPONSE')
+        performance_timeout = settings.QUEUES.get('RPC_QUEUES_TIMEOUT').get('ATTESTATION_STATUS')
+        super(ExamEnrollmentFormResponseClient, self).__init__(queue_name=queue_name, call_timeout=performance_timeout)

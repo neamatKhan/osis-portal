@@ -66,3 +66,6 @@ def insert_or_update_document(an_offer_enrollment, document):
     )
     return exam_enrollment_object
 
+
+def find_by_offer_enrollment(oe):
+    return ExamEnrollmentSubmitted.objects.filter(offer_enrollment=oe)
