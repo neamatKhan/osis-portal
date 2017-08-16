@@ -46,15 +46,14 @@ import pika.exceptions
 import traceback
 from django.http import HttpResponse
 from frontoffice.queue.queue_listener import ExamEnrollmentFormResponseClient
-from django.http import HttpResponseRedirect
 import datetime
-from voluptuous import Schema, Any, Required, All, Url, Length, error as voluptuous_error
+from voluptuous import Schema, Any, Required, error as voluptuous_error
 import logging
-from django.shortcuts import render
 
 
 logger = logging.getLogger(settings.DEFAULT_LOGGER)
 queue_exception_logger = logging.getLogger(settings.QUEUE_EXCEPTION_LOGGER)
+
 
 @login_required
 @permission_required('base.is_student', raise_exception=True)
@@ -215,8 +214,6 @@ def update_document_from_queue(body):
 
     offer_enrollment_id = data.get('offer_enrollment_id')
 
-    offer_acronym = data.get('offer_acronym')
-    a_year = data.get('year')
     offer_enrol = offer_enrollment.find_by_id(offer_enrollment_id)
 
     if offer_enrol:
@@ -231,15 +228,16 @@ def ask_exam_enrollment(request):
         stud = student.find_by_user(request.user)
     except MultipleObjectsReturned:
         return dash_main_view.show_multiple_registration_id_error(request)
-    student_programs = _get_student_programs(stud)
     offer_enrollment = get_student_offer_enrollment(stud)
     offer_yr = offer_enrollment.offer_year
 
-    message = _exam_enrollment_form_message(stud.registration_id, offer_yr.acronym, offer_yr.academic_year.year, offer_enrollment)
+    message = _exam_enrollment_form_message(stud.registration_id,
+                                            offer_yr.acronym,
+                                            offer_yr.academic_year.year,
+                                            offer_enrollment)
     json_data = json.dumps(message)
 
     if request.is_ajax():
-
         if hasattr(settings, 'QUEUES') and settings.QUEUES:
             try:
                 connect = pika.BlockingConnection(_get_rabbit_settings())
@@ -258,6 +256,7 @@ def ask_exam_enrollment(request):
 
     return HttpResponse(status=405)
 
+
 @login_required
 @permission_required('base.is_student', raise_exception=True)
 @require_http_methods(["POST"])
@@ -266,17 +265,19 @@ def check_exam_enrollment(request):
         stud = student.find_by_user(request.user)
 
         if _check_exam_enrollment_in_db(stud):
-            in_error = _check_exam_enrollment_error(stud)
+            enrollments_in_db_and_uptodate = _check_exam_enrollment_error(stud)
             return HttpResponse(status=200, content='your conent here')
         else:
             return HttpResponse(status=404)
     else:
         return HttpResponse(status=405)
 
+
 def _create_channel(connect, queue_name):
     channel = connect.channel()
     channel.queue_declare(queue=queue_name, durable=True)
     return channel
+
 
 def _get_rabbit_settings():
     credentials = pika.PlainCredentials(settings.QUEUES.get('QUEUE_USER'),
@@ -290,11 +291,11 @@ def _get_rabbit_settings():
 
 def _check_exam_enrollment_in_db(stud):
     if stud:
-        scores_in_db_and_uptodate = check_db_document(stud)
+        enrollments_in_db_and_uptodate = check_db_document(stud)
     else:
-        scores_in_db_and_uptodate = False
+        enrollments_in_db_and_uptodate = False
         logger.warning("A person doesn't exist for the user {0}".format(stud.person.user))
-    return scores_in_db_and_uptodate
+    return enrollments_in_db_and_uptodate
 
 
 def fetch_json_exam_enrollment(message):
@@ -309,6 +310,7 @@ def fetch_json_exam_enrollment(message):
             logger.error('Error fetching student attestation statuses.\nmessage sent :  {}'.format(str(message)))
     return attestation_statuses
 
+
 def get_student_offer_enrollment(stud):
     if stud:
         return offer_enrollment.find_by_student_academic_year(stud, academic_year.current_academic_year()).first()
@@ -319,8 +321,12 @@ def check_db_document(stud):
     if stud:
         oe = get_student_offer_enrollment(stud)
         exam_enrollment_sub = exam_enrollment_submitted.find_by_offer_enrollment(oe).first()
+        if exam_enrollment_sub and exam_enrollment_sub.document and (_is_outdated(exam_enrollment_sub.document) or _is_in_error(exam_enrollment_sub.document)):
+            exam_enrollment_sub.delete()
+            return False
 
-        if exam_enrollment_sub and exam_enrollment_sub.document and not is_outdated(exam_enrollment_sub.document):
+        if exam_enrollment_sub and exam_enrollment_sub.document and not _is_outdated(exam_enrollment_sub.document):
+
             try:
                 validate_data_structure(json.loads(exam_enrollment_sub.document))
                 return True
@@ -336,43 +342,9 @@ def check_db_document(stud):
 
 def get_data_schema():
     return Schema({
-        Required("error_message", default=''): Any(None,str),
+        Required("error_message", default=''): Any(None, str),
         Required("registration_id"): str,
         Required("offer_enrollment_id"): str,
-        Required("publication_date"): str,
-
-        Required("exam_enrollments"): All([
-            {
-                Required("credits"): float,
-                Required("credited", default=''): Any(None,str),
-                Required("enrolled_by_default"): Any(None,bool),
-                Required("can_enrol_to_exam"): bool,
-                Required("etat_to_inscr_current_session", default=''): Any(None,str),
-                # Required("session_1"): [
-                #     {
-                #         Required("score"): str,
-                #         Required("enrollment_state"): str,
-                #     }
-                # ],
-                # Required("session_2"): [
-                #     {
-                #         Required("score"): str,
-                #         Required("enrollment_state"): str,
-                #     }
-                # ],
-                # Required("session_3", default=[]): Any(None,list)[
-                #     {
-                #         Required("score"): str,
-                #         Required("enrollment_state", default=''): Any(None,str)
-                #     }
-                # ],
-                # Required("learning_unit_year"): {
-                #     Required("acronym"): str,
-                #     Required("title", default=''): Any(None,str),
-                #     Required("enrollment_state"): Any(None,str)
-                # }
-            }
-        ], Length(min=1), extra=True)
     }, extra=True)
 
 
@@ -380,38 +352,22 @@ def validate_data_structure(data):
     s = get_data_schema()
     return s(data)
 
-def is_outdated(document):
-    pass
-    return False
-    # json_document = json.loads(document)
-    # now = datetime.datetime.now()
-    # now_str = '%s/%s/%s' % (now.day, now.month, now.year)
-    # if json_document.get('publication_date', None) != now_str:
-    #     print('publication_date ko')
-    #     return True
-    # print('publication_date ok')
-    # return False
 
 def _check_exam_enrollment_error(stud):
     if stud:
-        scores_in_db_and_uptodate = check_db_document(stud)
+        enrollments_in_db_and_uptodate = check_db_document(stud)
     else:
-        scores_in_db_and_uptodate = False
+        enrollments_in_db_and_uptodate = False
         logger.warning("A person doesn't exist for the user {0}".format(stud.person.user))
-    return scores_in_db_and_uptodate
+    return enrollments_in_db_and_uptodate
 
-    oe = get_student_offer_enrollment(stud)
-    exam_enrollment_sub = exam_enrollment_submitted.find_by_offer_enrollment(oe).first()
-    if exam_enrollment_sub and exam_enrollment_sub.document:
-        if is_in_error(exam_enrollment_sub.document):
-            return True
-        return False
 
 def is_in_error(document):
     json_document = json.loads(document)
     if json_document.get('error_message', None):
         return True
     return False
+
 
 def _get_exam_enrollment_form(off_year, request, stud):
     learn_unit_enrols = learning_unit_enrollment.find_by_student_and_offer_year(stud, off_year)
@@ -433,16 +389,35 @@ def _get_exam_enrollment_form(off_year, request, stud):
 
 
 def view_exam_enrollment(request):
-    print('view_exam_enrollment')
     stud = student.find_by_user(request.user)
     oe = get_student_offer_enrollment(stud)
     json_document = exam_enrollment_submitted.find_by_offer_enrollment(oe).first()
 
-    # data = json_document.document
     data = json.loads(json_document.document)
     off_year = oe.offer_year
-    return layout.render_to_response(request, 'exam_enrollment_form.html', {'exam_enrollments': data.get('exam_enrollments'),
-                                                                'student': stud,
-                                                                'current_number_session': data.get('current_number_session'),
-                                                                'academic_year': academic_year.current_academic_year(),
-                                                                'program': offer_year.find_by_id(off_year.id)})
+
+    error_message = data.get('error_message')
+
+    return layout.render_to_response(request, 'exam_enrollment_form.html',
+                                     {'exam_enrollments': data.get('exam_enrollments'),
+                                      'error_message': error_message,
+                                      'student': stud,
+                                      'current_number_session': data.get('current_number_session'),
+                                      'academic_year': academic_year.current_academic_year(),
+                                      'program': offer_year.find_by_id(off_year.id)})
+
+
+def _is_outdated(document):
+    json_document = json.loads(document)
+    now = datetime.datetime.now()
+    now_str = '%s/%s/%s' % (now.day, now.month, now.year)
+    if json_document.get('publication_date', None) != now_str:
+        return True
+    return False
+
+
+def _is_in_error(document):
+    json_document = json.loads(document)
+    if json_document.get('error_message', None):
+        return True
+    return False

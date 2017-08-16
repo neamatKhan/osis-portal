@@ -90,3 +90,9 @@ msgstr "Faculty administration"
 
 msgid "error_multiple_registration_id"
 msgstr "A problem was detected with your registration : 2 registration id's are linked to your user. Please contact the registration departement (SIC). Thank you."
+
+msgid "enrollments_unavailable"
+msgstr "Enrollments are not available for now."
+
+msgid "enrollments_list_building"
+msgstr "Enrollments list is building."

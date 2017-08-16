@@ -25,19 +25,21 @@
     <div class="grid-item">
        <i class="fa fa-book"></i>
        <div class="description">
-           <h4 class="media-heading"><a href="{% url 'exam_enrollment_form_direct' %}" id="lnk_exam_enrollment_offer_choice">{% trans 'exams_enrollment' %}</a></h4>
+           <h4 class="media-heading">
+               <a id="lnk_ask_exam_enrollment" onclick="ask_exam_enrollment()" >
+                   {% trans 'exams_enrollment' %}
+               </a>
+           </h4>
            <div id="message_box" class="alert alert-info" style="margin-top: 1em;">
                <span id="status_message"></span>
            </div>
-           <button id="lnk_ask_exam_enrollment" onclick="ask_exam_enrollment()" class="btn btn-lg btn-primary" >
-           {% trans 'exams_enrollment' %}yyy
-           </button>
-           {{ in_error }}
-           <input id="er" value="{{ in_error }}">
+
            <p>{% trans 'desc_lnk_exam_enrollment' %}</p>
-           <form id="form_view_exam_enrollment" action="{% url 'view_exam_enrollment' %}" method="get" class="form" role="form"
+           <form id="form_view_exam_enrollment"
+                 action="{% url 'view_exam_enrollment' %}" method="get" class="form" role="form"
                  style="visibility:hidden;display:block;"  >
            </form>
+           <br>
        </div>
     </div>
 {% endif %}
