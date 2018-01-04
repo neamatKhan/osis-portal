@@ -23,7 +23,11 @@
 #    see http://www.gnu.org/licenses/.
 #
 ##############################################################################
+import datetime
+
 import factory
+
+from osis_common.utils.datetime import get_tzinfo
 
 
 class UserFactory(factory.DjangoModelFactory):
@@ -31,3 +35,20 @@ class UserFactory(factory.DjangoModelFactory):
         model = 'auth.User'
 
     username = factory.Faker('user_name')
+    first_name = factory.Faker('first_name')
+    last_name = factory.Faker('last_name')
+    email = factory.Faker('email')
+    password = factory.PostGenerationMethodCall('set_password', 'password123')
+
+    is_active = True
+    is_staff = False
+    is_superuser = False
+
+    last_login = factory.LazyAttribute(lambda _o: datetime.datetime(2000, 1, 1, tzinfo=get_tzinfo()))
+    date_joined = factory.LazyAttribute(lambda _o: datetime.datetime(1999, 1, 1, tzinfo=get_tzinfo()))
+
+
+class SuperUserFactory(UserFactory):
+    is_superuser = True
+    is_staff = True
+    is_active = True

@@ -24,6 +24,8 @@
 #
 ##############################################################################
 import operator
+import string
+
 import factory
 import factory.fuzzy
 from django.conf import settings
@@ -49,3 +51,7 @@ class PersonFactory(factory.DjangoModelFactory):
     gender = factory.Iterator(mdl.person.Person.GENDER_CHOICES, getter=operator.itemgetter(0))
     user = factory.SubFactory(UserFactory)
     global_id = None
+
+
+class PersonRandomGlobalIdFactory(PersonFactory):
+    global_id = factory.fuzzy.FuzzyText(length=10, chars=string.digits)
