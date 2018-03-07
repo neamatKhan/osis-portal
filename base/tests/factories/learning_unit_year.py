@@ -38,6 +38,7 @@ class LearningUnitYearFactory(factory.django.DjangoModelFactory):
 
     external_id = factory.fuzzy.FuzzyText(length=10, chars=string.digits)
     acronym = factory.LazyAttribute(lambda obj: obj.learning_unit.acronym)
+    #acronym = factory.SubFactory(LearningUnitFactory)
     specific_title = factory.LazyAttribute(lambda obj: obj.learning_unit.title)
     credits = 5
     weight = 5
@@ -45,3 +46,5 @@ class LearningUnitYearFactory(factory.django.DjangoModelFactory):
     learning_unit = factory.SubFactory(LearningUnitFactory)
     learning_container_year = None
     subtype = learning_unit_year_subtypes.FULL
+
+
