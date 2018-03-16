@@ -1,12 +1,15 @@
 from random import randint, random
 
 import factory
+import time
+import datetime
 import pendulum
 from django.contrib.auth.models import Group, Permission
 import pyvirtualdisplay
 
 from django.core.urlresolvers import reverse
 
+from attribution.business import tutor_application
 from attribution.models.attribution import Attribution
 from attribution.tests.factories.attribution import AttributionFactory
 from attribution.utils import permission
@@ -28,6 +31,8 @@ from urllib import request
 from selenium import webdriver
 
 CNUM_MIN=1000
+SIZE =(1920, 1080)
+GLOBAL_ID ='0001'
 
 
 class BusinessMixin:
@@ -49,7 +54,7 @@ class BusinessMixin:
             group.user_set.add(user)
 
     def create_tutor(self, user):
-        person = PersonFactory(user=user, language='fr-be')
+        person = PersonFactory(user=user, language='fr-be', global_id=GLOBAL_ID)
         return TutorFactory(person=person)
 
 
@@ -90,8 +95,7 @@ class BusinessMixin:
 
 
 
-SIZE =(1920, 1080)
-# url = 'http://localhost:8000'
+
 class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
     @classmethod
     def setUpClass(cls):
@@ -106,7 +110,7 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
 
 
     @classmethod
-    def tearDownClass(cls):
+    def tearDownClass2(cls):
         cls.driver.quit()
         # cls.display.stop()
         super().tearDownClass()
@@ -121,6 +125,7 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         url = self.get_url_by_name(url_name, *args, **kwargs)
         self.driver.get(url)
 
+
     def fill_by_id(self,element_id, value):
         element = self.driver.find_element_by_id(element_id)
         element.clear()
@@ -130,6 +135,15 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         element = self.driver.find_element_by_id(element_id)
         element.click()
 
+    def click_on_by_css(self, css_link):
+       link_element = self.driver.find_elements_by_css_selector(css_link)
+       print("link  is : ".format(link_element))
+
+       #link_element.click()
+
+
+
+
     def login(self, username, password='password123'):
         self.fill_by_id('id_username', username)
         self.fill_by_id('id_password', password)
@@ -137,7 +151,9 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
 
     def open_browser_and_log_on_user(self,url, user):
         url = self.goto(url)
+        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/start_url.png')
         self.login(user.username)
+        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/login.png')
         # import pdb; pdb.set_trace()
         #assert 'OSIS' in self.driver.title
 
@@ -165,10 +181,11 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
                                          type=component_type.PRACTICAL_EXERCISES)
         return a_learning_unit_year
 
-    def create_learning_container(self,acronym, academic_year,type_declaration_vacant=vacant_declaration_type.RESEVED_FOR_INTERNS):
+    def create_learning_container(self,acronym, academic_year, type_declaration_vacant=vacant_declaration_type.RESEVED_FOR_INTERNS):
 
         l_container = LearningContainerYearFactory(acronym=acronym, academic_year=academic_year,
                                                    type_declaration_vacant=type_declaration_vacant)
+        print("le conteneur créé est : {}, {}, {}".format(l_container.academic_year, l_container.acronym, l_container.type_declaration_vacant))
         return l_container
 
 
@@ -188,25 +205,25 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         groupe_list.append(group)
 
         self.add_group(user, *groupe_list)
-        permission ='attribution.can_access_attribution_application'
+        permission = 'attribution.can_access_attribution_application'
 
-        tutor = self.create_tutor_with_permission(user,permission)
+        tutor = self.create_tutor_with_permission(user, permission)
 
         # Create current academic year
-        current_academic_year = AcademicYearFactory(year=pendulum.today().year - 1)
+        current_academic_year = AcademicYearFactory(year=pendulum.today().year-1)
         # Create application year
-        next_academic_year = AcademicYearFactory(year=pendulum.today().year + 1)
+        next_academic_year = AcademicYearFactory(year=pendulum.today().year)
 
         # Create Event to allow teacher to register
-        #start_date = pendulum.today() - pendulum.timedelta(days=10)
-        #end_date = pendulum.today() + pendulum.timedelta(days=15)
+        start_date = datetime.datetime.today() - datetime.timedelta(days=10)
+        end_date = datetime.datetime.today() + datetime.timedelta(days=15)
+        AcademicCalendarFactory(academic_year=current_academic_year,
+                                start_date=start_date,
+                                end_date=end_date,
+                                reference=academic_calendar_type.TEACHING_CHARGE_APPLICATION)
 
-        academic_calendar = AcademicCalendarFactory(academic_year=current_academic_year,
-                                                    reference=academic_calendar_type.TEACHING_CHARGE_APPLICATION)
-        #                                            start_date = start_date, end_date = end_date)
 
-
-       # print("Annee academique : {} {}".format(academic_calendar.start_date, academic_calendar.end_date))
+        # print("Annee academique : {} {}".format(academic_calendar.start_date, academic_calendar.end_date))
 
         # tutor = self.create_tutor_with_permission(user, permission)
         #
@@ -215,8 +232,7 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         for counter in range(1, 10):
             cnum = cnum+1
             acronym = "LBIOL{}".format(cnum)
-            l_container_current = self.create_learning_container (acronym, current_academic_year)
-
+            l_container_current = self.create_learning_container(acronym, current_academic_year)
             volume_lecturing = None
             volume_practical_exercices = None
             subtype = learning_unit_year_subtypes.FULL
@@ -231,8 +247,8 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
             volume_lecturing = 70
             volume_practical_exercices = 70
 
-            type_declaration_vacant = vacant_declaration_type.DO_NOT_ASSIGN
-            l_container_year_next = self.create_learning_container(acronym, next_academic_year,type_declaration_vacant)
+           # type_declaration_vacant = vacant_declaration_type.RESEVED_FOR_INTERNS
+            l_container_year_next = self.create_learning_container(acronym, next_academic_year)
 
             learning_unit_year_next = self.link_components_and_learning_unit_year_to_container(l_container_year_next,
                                                                                                 acronym,
@@ -243,16 +259,117 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
                 self.create_attribution(learning_unit_year_current, tutor)
                 print("attribution {}".format(counter))
             print("attribution OK")
-            learning_unit_list.append(learning_unit_year_current.acronym)
+            learning_unit_list.append(learning_unit_year_current)
+
         self.open_browser_and_log_on_user('login', user)
         print("connected to : {}".format(self.driver.current_url))
         self.goto('applications_overview')
         self.click_on("lnk_submit_attribution_new")
-        acronym_test = learning_unit_list[3]
-        print("{}".format(acronym_test))
-        self.fill_by_id("id_learning_container_acronym",acronym_test)
+        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/create_apply.png')
+        for learning_unit_year_test in learning_unit_list:
+             self.fill_by_id("id_learning_container_acronym", learning_unit_year_test.acronym)
+             self.click_on("bt_submit_vacant_attributions_search")
+             extension=".png"
+             pth_file = "/home/nizeyimana/Images/create_apply_to_{}{}".format(learning_unit_year_test.acronym, extension)
+             self.driver.get_screenshot_as_file(pth_file)
+             #alert_element = self.driver.find_element_by_css_selector("#pnl_charges > div.panel-body > div.alert.alert-info")
+             #not_found_message = alert_element.text
+             #print("Message {}".format(not_found_message))
+             #if not_found_message != ("Pas d'activité vacante correspondante"):
+             #    break
+
+        #postuler sur le premier cours
+
+        learning_unit_year_test=learning_unit_list[0]
+        self.fill_by_id("id_learning_container_acronym", learning_unit_year_test.acronym)
         self.click_on("bt_submit_vacant_attributions_search")
-        self.driver.implicitly_wait(15)
+        self.click_on("lnk_submit_attribution_new")
+        #tester d'abord le bouton "annuler"
+
+        self.driver.find_element_by_link_text('Annuler').click()
+        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/cancel_apply.png')
+        #retour à la nouvelle candidature pour un nouveau cours
+
+        learning_unit_year_test = learning_unit_list[1]
+        self.click_on("lnk_submit_attribution_new")
+        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/create_new_apply.png')
+        self.fill_by_id("id_learning_container_acronym",  learning_unit_year_test.acronym)
+        self.click_on("bt_submit_vacant_attributions_search")
+        extension = ".png"
+        pth_file = "/home/nizeyimana/Images/create_apply_to_{}{}".format(learning_unit_year_test.acronym, extension)
+
+        self.click_on("lnk_submit_attribution_new")
+
+        volume_lecturing_asked = "aba"
+        volume_practical_asked = -10
+        self.fill_by_id("id_charge_lecturing_asked", volume_lecturing_asked)
+
+        self.fill_by_id("id_charge_practical_asked", volume_practical_asked)
+        self.click_on("bt_submit")
+        time.sleep(3)
+        volume_lecturing_asked = -10
+        volume_practical_asked = "abc"
+        self.fill_by_id("id_charge_lecturing_asked", volume_lecturing_asked)
+
+        self.fill_by_id("id_charge_practical_asked", volume_practical_asked)
+        self.click_on("bt_submit")
+        time.sleep(2)
+
+        volume_lecturing_asked = 0
+        volume_practical_asked = 0
+        self.fill_by_id("id_charge_lecturing_asked", volume_lecturing_asked)
+
+        self.fill_by_id("id_charge_practical_asked", volume_practical_asked)
+        self.click_on("bt_submit")
+        time.sleep(3)
+
+        volume_lecturing_asked = 35
+        volume_practical_asked = 70
+        self.fill_by_id("id_charge_lecturing_asked", volume_lecturing_asked)
+
+        self.fill_by_id("id_charge_practical_asked", volume_practical_asked)
+        self.click_on("bt_submit")
+        time.sleep(3)
+
+        tutor_application.validate_application(GLOBAL_ID, learning_unit_year_test.acronym, next_academic_year.year)
+
+        #recharger pour voir si possibilité de modifier
+        self.goto('applications_overview')
+        #tester le suppression
+        #self.click_on("lnk_application_delete_4")
+
+        # puis tester le suppression
+        self.click_on("lnk_application_edit_4")
+
+        #id_course_summary (Votre proposition d'organisation pédagogique )
+        #id_remark   (Remarque)
+
+        
+
+
+
+
+
+
+
+        #validate_application(global_id, acronym, year)
+
+
+
+        #id_charge_lecturing_asked
+
+        #id_charge_practical_asked
+        #bt_submit
+        ##pnl_application_form > div.panel-body > form > div.row.pull-right > div > a
+        #// *[ @ id = "pnl_application_form"] / div[2] / form / div[6] / div / a
+
+
+
+
+
+
+
+
 
 
 
