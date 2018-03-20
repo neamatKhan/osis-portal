@@ -11,7 +11,8 @@ from django.core.urlresolvers import reverse
 
 from attribution.business import tutor_application
 from attribution.models.attribution import Attribution
-from attribution.tests.factories.attribution import AttributionFactory
+from attribution.tests.factories import attribution
+from attribution.tests.factories.attribution import AttributionFactory, AttributionNewFactory
 from attribution.utils import permission
 from base.models.enums import academic_calendar_type, learning_unit_year_subtypes, vacant_declaration_type, \
     learning_component_year_type, component_type
@@ -32,7 +33,7 @@ from selenium import webdriver
 
 CNUM_MIN=1000
 SIZE =(1920, 1080)
-GLOBAL_ID ='0001'
+GLOBAL_ID = '0001'
 
 
 class BusinessMixin:
@@ -65,12 +66,6 @@ class BusinessMixin:
         print("learning_unit created {} {}".format(learning_unit_year.learning_unit.acronym, learning_unit_year.learning_unit.title, ))
         return learning_unit_year
 
-
-    #creer l'unité d'enseignement et l'attribuer
-    def create_attribution(self,learning_unit_year,tutor):
-        AttributionFactory(tutor=tutor, learning_unit_year=learning_unit_year)
-        return learning_unit_year
-
     #donner à l'utilisateur une ou plusieurs permissions.
     #une permission est composée par le label et le code
     def add_permission(self, user, permission):
@@ -86,9 +81,8 @@ class BusinessMixin:
             #    permission = Permission.objects.get(codename=permission)
         user.user_permissions.add(permission)
 
-    def create_tutor_with_permission(self,user,permission):
-        #self.add_permission(user,*permission_list)
-        self.add_permission(user,permission)
+    def create_tutor_with_permission(self, user, permission):
+        self.add_permission(user, permission)
         turor = self.create_tutor(user)
         print("Permission given to tutor {}, {} {} {}'".format(turor.external_id, user.last_name, user.username, user.first_name))
         return turor
@@ -134,14 +128,6 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
     def click_on(self,element_id):
         element = self.driver.find_element_by_id(element_id)
         element.click()
-
-    def click_on_by_css(self, css_link):
-       link_element = self.driver.find_elements_by_css_selector(css_link)
-       print("link  is : ".format(link_element))
-
-       #link_element.click()
-
-
 
 
     def login(self, username, password='password123'):
@@ -190,6 +176,30 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
 
 
 
+
+    def get_application_example(self, learning_container_year, volume_lecturing, volume_practical_exercice, flag=None):
+        return {
+            'remark': 'This is the remarks',
+            'course_summary': 'This is the course summary',
+            'charge_lecturing_asked': volume_lecturing,
+            'charge_practical_asked': volume_practical_exercice,
+            'acronym': learning_container_year.acronym,
+            'year': learning_container_year.academic_year.year,
+            'pending': flag
+        }
+
+
+    def get_attributions_example(self, learning_container_year, volume_lecturing, volume_practical):
+
+        return {'year': learning_container_year.academic_year.year, 'acronym': learning_container_year.acronym ,
+                'title': 'Biologie complexe', 'weight': '70.00', 'LECTURING': volume_lecturing,
+                'PRACTICAL_EXERCISES':volume_practical, 'function':'HOLDER', 'end_year' : learning_container_year.academic_year.year}
+
+
+    def create_or_update_application_creation_on_existing_user(self, tutor, attributions, applications):
+        return AttributionNewFactory(global_id=tutor.person.global_id, attributions=attributions, applications=applications)
+
+
     def test_01(self):
         user = self.create_user()
 
@@ -228,38 +238,49 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         # tutor = self.create_tutor_with_permission(user, permission)
         #
         learning_unit_list =[]
+        learning_contener_list = []
         cnum = CNUM_MIN
-        for counter in range(1, 3):
-            cnum = cnum+1
+        volume_lecturing = 70
+        volume_practical = 70
+
+        for counter in range(0, 3):
             acronym = "LBIOL{}".format(cnum)
             l_container_current = self.create_learning_container(acronym, current_academic_year)
-            volume_lecturing = None
-            volume_practical_exercices = None
+
             subtype = learning_unit_year_subtypes.FULL
 
             learning_unit_year_current = self.link_components_and_learning_unit_year_to_container(l_container_current,
                                                                                                   acronym,
                                                                                                   volume_lecturing,
-                                                                                                  volume_practical_exercices,
+                                                                                                  volume_practical,
                                                                                                   subtype)
-            #learning_unit_year = self.create_learning_units(academic_year,cnum)
-
-            volume_lecturing = 70
-            volume_practical_exercices = 70
 
            # type_declaration_vacant = vacant_declaration_type.RESEVED_FOR_INTERNS
             l_container_year_next = self.create_learning_container(acronym, next_academic_year)
 
             learning_unit_year_next = self.link_components_and_learning_unit_year_to_container(l_container_year_next,
-                                                                                                acronym,
-                                                                                                volume_lecturing,
-                                                                                                volume_practical_exercices,
+                                                                                            acronym, volume_lecturing,
+                                                                                               volume_practical,
                                                                                                 subtype)
             learning_unit_list.append(learning_unit_year_current)
+            learning_contener_list.append(l_container_current)
+            cnum += 1
+
+
+        #creer des charge existant
+        applications = []
+        attributions = []
+        for counter in range(0,2):
+            l_container = learning_contener_list[counter]
+            applications.append(self.get_application_example(l_container, volume_lecturing, volume_practical))
+            attributions.append(self.get_attributions_example(l_container, volume_lecturing, volume_practical))
+
+        self.create_or_update_application_creation_on_existing_user(tutor, attributions, applications)
 
         self.open_browser_and_log_on_user('login', user)
         print("connected to : {}".format(self.driver.current_url))
         self.goto('applications_overview')
+        time.sleep(10)
         self.click_on("lnk_submit_attribution_new")
         self.driver.get_screenshot_as_file('/home/nizeyimana/Images/create_apply.png')
         for learning_unit_year_test in learning_unit_list:
@@ -276,7 +297,7 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
 
         #postuler sur le premier cours
 
-        learning_unit_year_test=learning_unit_list[0]
+        learning_unit_year_test=learning_unit_list[-1]
         self.fill_by_id("id_learning_container_acronym", learning_unit_year_test.acronym)
         self.click_on("bt_submit_vacant_attributions_search")
         self.click_on("lnk_submit_attribution_new")
@@ -286,7 +307,6 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         self.driver.get_screenshot_as_file('/home/nizeyimana/Images/cancel_apply.png')
         #retour à la nouvelle candidature pour un nouveau cours
 
-        learning_unit_year_test = learning_unit_list[1]
         self.click_on("lnk_submit_attribution_new")
         self.driver.get_screenshot_as_file('/home/nizeyimana/Images/create_new_apply.png')
         self.fill_by_id("id_learning_container_acronym",  learning_unit_year_test.acronym)
@@ -383,14 +403,15 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         #recharger pour voir si possibilité de modifier
         self.goto('applications_overview')
         self.driver.get_screenshot_as_file('/home/nizeyimana/Images/valider_for_epc.png')
+
         time.sleep(3)
         #tester le suppression
-        #self.click_on("lnk_application_delete_4")
+        #self.click_on("lnk_application_delete_{}".format(len(learning_unit_list)*2))
         #self.driver.get_screenshot_as_file('/home/nizeyimana/Images/suppr01.png')
-        time.sleep(3)
+       #time.sleep(3)
 
-        # puis tester la modification
-        self.click_on("lnk_application_edit_4")
+        # puis tester la modification sur le dernier cours de la liste
+        self.click_on("lnk_application_edit_{}".format(len(learning_unit_list)*2))
         self.driver.get_screenshot_as_file('/home/nizeyimana/Images/edit_screen.png')
 
         proposition ="Proposition de Test"
@@ -412,7 +433,7 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         self.goto('applications_overview')
         self.driver.get_screenshot_as_file('/home/nizeyimana/Images/verifier_modif.png')
         # puis tester la modification
-        self.click_on("lnk_application_edit_4")
+        self.click_on("lnk_application_edit_{}".format(len(learning_unit_list)*2))
         self.driver.get_screenshot_as_file('/home/nizeyimana/Images/afficher_modif_screen.png')
         time.sleep(3)
 
@@ -431,10 +452,29 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
 
         print("TEST OK POUR \"NOUVELLE CANDIDATURE\"")
 
+        #tester le check box tout sélectionner/déselectionner et valider
 
-        #self.create_attribution(learning_unit_year_current, tutor)
-        #test_renew_applications
+        print("DEBUT TEST POUR \"RECONDUIRE CANDIDATURE\"")
 
+        print("Sélectionner tout")
+
+        self.click_on('chb_renew_all')
+        for counter in (0, 1):
+            element_check = self.driver.find_element_by_id("chb_attribution_renew_{}".format(counter+1))
+            assert(element_check.is_selected())
+            print("{} {}".format(counter+1, element_check.text))
+
+        print("Ok \"Sélectionner tout\"")
+
+        print("Désélectionner tout")
+
+        self.click_on('chb_renew_all')
+        for counter in (0, 1):
+            element_check = self.driver.find_element_by_id("chb_attribution_renew_{}".format(counter + 1))
+            assert (not element_check.is_selected())
+            print("{} {}".format(counter + 1, element_check.text))
+
+        print("Ok \"Désélectionner tout\"")
 
 
 
