@@ -229,7 +229,7 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         #
         learning_unit_list =[]
         cnum = CNUM_MIN
-        for counter in range(1, 10):
+        for counter in range(1, 3):
             cnum = cnum+1
             acronym = "LBIOL{}".format(cnum)
             l_container_current = self.create_learning_container(acronym, current_academic_year)
@@ -255,10 +255,6 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
                                                                                                 volume_lecturing,
                                                                                                 volume_practical_exercices,
                                                                                                 subtype)
-            if (counter % 2 == 0):
-                self.create_attribution(learning_unit_year_current, tutor)
-                print("attribution {}".format(counter))
-            print("attribution OK")
             learning_unit_list.append(learning_unit_year_current)
 
         self.open_browser_and_log_on_user('login', user)
@@ -294,34 +290,84 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         self.click_on("lnk_submit_attribution_new")
         self.driver.get_screenshot_as_file('/home/nizeyimana/Images/create_new_apply.png')
         self.fill_by_id("id_learning_container_acronym",  learning_unit_year_test.acronym)
+        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/create_new_apply01.png')
+        time.sleep(2)
         self.click_on("bt_submit_vacant_attributions_search")
         extension = ".png"
         pth_file = "/home/nizeyimana/Images/create_apply_to_{}{}".format(learning_unit_year_test.acronym, extension)
-
+        self.driver.get_screenshot_as_file(pth_file)
         self.click_on("lnk_submit_attribution_new")
 
         volume_lecturing_asked = "aba"
         volume_practical_asked = -10
-        self.fill_by_id("id_charge_lecturing_asked", volume_lecturing_asked)
+        id_element_lecturing_asked = "id_charge_lecturing_asked"
+        self.fill_by_id(id_element_lecturing_asked, volume_lecturing_asked)
+        id_element_practical_asked = "id_charge_practical_asked"
 
-        self.fill_by_id("id_charge_practical_asked", volume_practical_asked)
+        self.fill_by_id(id_element_practical_asked, volume_practical_asked)
         self.click_on("bt_submit")
+        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/invalide_input01.png')
         time.sleep(3)
+
+        element_error_01 = self.driver.find_element_by_css_selector(
+            "#pnl_application_form > div.panel-body > form > div:nth-child(7) > div:nth-child(1) > span")
+        assert(element_error_01.text =="Saisissez un nombre.")
+
+
+        print("Donnée invalide rejetée est : \"{}\" et le message de rejet est : \"{}\"".format(volume_lecturing_asked, element_error_01.text))
+        element_error_02 = self.driver.find_element_by_css_selector(
+            "#pnl_application_form > div.panel-body > form > div:nth-child(7) > div:nth-child(2) > span")
+        assert (element_error_02.text == "Assurez-vous que cette valeur est supérieure ou égale à 0.")
+
+
+        print("Donnée invalide rejetée est : \"{}\" et le message de rejet est : \"{}\"".format(volume_practical_asked,element_error_02.text))
+
         volume_lecturing_asked = -10
         volume_practical_asked = "abc"
-        self.fill_by_id("id_charge_lecturing_asked", volume_lecturing_asked)
+        self.fill_by_id(id_element_lecturing_asked, volume_lecturing_asked)
 
-        self.fill_by_id("id_charge_practical_asked", volume_practical_asked)
+        self.fill_by_id(id_element_practical_asked, volume_practical_asked)
         self.click_on("bt_submit")
-        time.sleep(2)
+        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/invalide_input02.png')
 
-        volume_lecturing_asked = 0
-        volume_practical_asked = 0
-        self.fill_by_id("id_charge_lecturing_asked", volume_lecturing_asked)
+        element_error_01 = self.driver.find_element_by_css_selector(
+            "#pnl_application_form > div.panel-body > form > div:nth-child(7) > div:nth-child(1) > span")
+        assert (element_error_01.text == "Assurez-vous que cette valeur est supérieure ou égale à 0.")
+        print("Donnée invalide rejetée est : \"{}\" et le message de rejet est : \"{}\"".format(volume_lecturing_asked,
+                                                                                        element_error_01.text))
 
-        self.fill_by_id("id_charge_practical_asked", volume_practical_asked)
-        self.click_on("bt_submit")
+        element_error_02 = self.driver.find_element_by_css_selector(
+            "#pnl_application_form > div.panel-body > form > div:nth-child(7) > div:nth-child(2) > span")
+
+        assert (element_error_02.text == "Saisissez un nombre.")
+
+        print("Donnée invalide rejetée est : \"{}\" et le message de rejet est : \"{}\"".format(volume_practical_asked,
+                                                                                        element_error_02.text))
         time.sleep(3)
+
+        volume_lecturing_asked = 70.01
+        volume_practical_asked = 1003
+        self.fill_by_id(id_element_lecturing_asked, volume_lecturing_asked)
+
+        self.fill_by_id(id_element_practical_asked, volume_practical_asked)
+        self.click_on("bt_submit")
+        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/invalide_input002.png')
+
+        element_error_01 = self.driver.find_element_by_css_selector(
+            "#pnl_application_form > div.panel-body > form > div:nth-child(6) > div:nth-child(1) > span")
+        assert (element_error_01.text == "Assurez-vous qu'il n'y a pas plus de 1 chiffre après la virgule.")
+        print("Donnée invalide rejetée est : \"{}\" et le message de rejet est : \"{}\"".format(volume_lecturing_asked,
+                                                                                                element_error_01.text))
+
+        element_error_02 = self.driver.find_element_by_css_selector(
+            "#pnl_application_form > div.panel-body > form > div:nth-child(6) > div:nth-child(2) > span")
+
+        assert (element_error_02.text == "Trop élevé (max: 70.0)")
+
+        print("Donnée invalide rejetée est : \"{}\" et le message de rejet est : \"{}\"".format(volume_practical_asked,
+                                                                                                element_error_02.text))
+        time.sleep(3)
+
 
         volume_lecturing_asked = 35
         volume_practical_asked = 70
@@ -329,41 +375,65 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
 
         self.fill_by_id("id_charge_practical_asked", volume_practical_asked)
         self.click_on("bt_submit")
+        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/valid_input.png')
         time.sleep(3)
 
         tutor_application.validate_application(GLOBAL_ID, learning_unit_year_test.acronym, next_academic_year.year)
 
         #recharger pour voir si possibilité de modifier
         self.goto('applications_overview')
+        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/valider_for_epc.png')
+        time.sleep(3)
         #tester le suppression
         #self.click_on("lnk_application_delete_4")
+        #self.driver.get_screenshot_as_file('/home/nizeyimana/Images/suppr01.png')
+        time.sleep(3)
 
-        # puis tester le suppression
+        # puis tester la modification
         self.click_on("lnk_application_edit_4")
+        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/edit_screen.png')
 
-        #id_course_summary (Votre proposition d'organisation pédagogique )
-        #id_remark   (Remarque)
+        proposition ="Proposition de Test"
+        id_element_proposion = "id_course_summary"
+        self.fill_by_id(id_element_proposion, proposition)
+        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/edite_proposition.png')
+        time.sleep(5)
+        remark = "Remarque de Test"
+        id_element_remark = "id_remark"
+        self.fill_by_id("id_remark", remark)
+        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/remark_screen.png')
+        time.sleep(5)
+        self.click_on("bt_submit")
 
-        
+        print("Verification des modifications effectuées sur la candidature au {}".format(learning_unit_year_test.acronym))
+        tutor_application.validate_application(GLOBAL_ID, learning_unit_year_test.acronym, next_academic_year.year)
+
+        # recharger pour voir si possibilité de modifier
+        self.goto('applications_overview')
+        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/verifier_modif.png')
+        # puis tester la modification
+        self.click_on("lnk_application_edit_4")
+        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/afficher_modif_screen.png')
+        time.sleep(3)
+
+        #vérifier que les modif encodées ont été enregistrées
+
+        element_proposition = self.driver.find_element_by_id(id_element_proposion)
+        assert(element_proposition.text==proposition)
+        print("La proposition enregistrée est : {} ".format(element_proposition.text))
+        element_remark = self.driver.find_element_by_id(id_element_remark)
+        assert (element_remark.text == remark)
+        print("La remarque enregistrée est : {} ".format(element_remark.text))
+
+        time.sleep(3)
+        self.driver.find_element_by_link_text('Annuler').click()
+        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/end_of_test_01.png')
+
+        print("TEST OK POUR \"NOUVELLE CANDIDATURE\"")
 
 
-
-
-
-
-
-        #validate_application(global_id, acronym, year)
-
-
-
-        #id_charge_lecturing_asked
-
-        #id_charge_practical_asked
-        #bt_submit
-        ##pnl_application_form > div.panel-body > form > div.row.pull-right > div > a
-        #// *[ @ id = "pnl_application_form"] / div[2] / form / div[6] / div / a
-
-
+        #self.create_attribution(learning_unit_year_current, tutor)
+        #test_renew_applications
 
 
 
