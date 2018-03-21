@@ -1,6 +1,5 @@
 from random import randint, random
 
-import factory
 import time
 import datetime
 import pendulum
@@ -10,10 +9,7 @@ import pyvirtualdisplay
 from django.core.urlresolvers import reverse
 
 from attribution.business import tutor_application
-from attribution.models.attribution import Attribution
-from attribution.tests.factories import attribution
 from attribution.tests.factories.attribution import AttributionFactory, AttributionNewFactory
-from attribution.utils import permission
 from base.models.enums import academic_calendar_type, learning_unit_year_subtypes, vacant_declaration_type, \
     learning_component_year_type, component_type
 from base.tests.factories.academic_calendar import AcademicCalendarFactory
@@ -31,7 +27,6 @@ from urllib import request
 
 from selenium import webdriver
 
-CNUM_MIN=1000
 SIZE =(1920, 1080)
 GLOBAL_ID = '0001'
 
@@ -69,13 +64,7 @@ class BusinessMixin:
     #donner à l'utilisateur une ou plusieurs permissions.
     #une permission est composée par le label et le code
     def add_permission(self, user, permission):
-        #content_type = ContentType.objects.get_for_model(Attribution)
-        #for permission in permissions:
-            #if '.' in permission:
         label, codename = permission.split('.')
-            #    print("{} {}".format(label, codename))
-
-
         permission = Permission.objects.get(codename=codename, content_type__app_label=label)
             #else:
             #    permission = Permission.objects.get(codename=permission)
@@ -137,9 +126,9 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
 
     def open_browser_and_log_on_user(self,url, user):
         url = self.goto(url)
-        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/start_url.png')
+        self.driver.save_screenshot('/home/nizeyimana/Images/start_url.png')
         self.login(user.username)
-        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/login.png')
+        self.driver.save_screenshot('/home/nizeyimana/Images/login.png')
         # import pdb; pdb.set_trace()
         #assert 'OSIS' in self.driver.title
 
@@ -233,18 +222,13 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
                                 reference=academic_calendar_type.TEACHING_CHARGE_APPLICATION)
 
 
-        # print("Annee academique : {} {}".format(academic_calendar.start_date, academic_calendar.end_date))
-
-        # tutor = self.create_tutor_with_permission(user, permission)
-        #
-        learning_unit_list =[]
-        learning_contener_list = []
-        cnum = CNUM_MIN
+        learning_unit_dict = {}
+        learning_container_dict = {}
         volume_lecturing = 70
         volume_practical = 70
-
-        for counter in range(0, 3):
-            acronym = "LBIOL{}".format(cnum)
+        #4 UE, la dernière ne sera pas vacant, l'avant dernière sera vacant, les deux premières avec une possibilité de reconduction
+        for counter in range(0, 4):
+            acronym = "LBIOL100{}".format(counter)
             l_container_current = self.create_learning_container(acronym, current_academic_year)
 
             subtype = learning_unit_year_subtypes.FULL
@@ -255,23 +239,21 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
                                                                                                   volume_practical,
                                                                                                   subtype)
 
-           # type_declaration_vacant = vacant_declaration_type.RESEVED_FOR_INTERNS
-            l_container_year_next = self.create_learning_container(acronym, next_academic_year)
+            # type_declaration_vacant = vacant_declaration_type.RESEVED_FOR_INTERNS
+            if counter < 3:
+                l_container_next_year = self.create_learning_container(acronym, next_academic_year)
 
-            learning_unit_year_next = self.link_components_and_learning_unit_year_to_container(l_container_year_next,
-                                                                                            acronym, volume_lecturing,
-                                                                                               volume_practical,
-                                                                                                subtype)
-            learning_unit_list.append(learning_unit_year_current)
-            learning_contener_list.append(l_container_current)
-            cnum += 1
+                l_container_next_year = self.link_components_and_learning_unit_year_to_container(l_container_next_year, acronym,
+                                                                         volume_lecturing, volume_practical, subtype)
+            learning_unit_dict[counter] = learning_unit_year_current
+            learning_container_dict[counter] = l_container_current
 
 
-        #creer des charge existant
+        #créer des charges existantes
         applications = []
         attributions = []
-        for counter in range(0,2):
-            l_container = learning_contener_list[counter]
+        for counter in range(0, 2):
+            l_container = learning_container_dict[counter]
             applications.append(self.get_application_example(l_container, volume_lecturing, volume_practical))
             attributions.append(self.get_attributions_example(l_container, volume_lecturing, volume_practical))
 
@@ -282,40 +264,39 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         self.goto('applications_overview')
         time.sleep(10)
         self.click_on("lnk_submit_attribution_new")
-        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/create_apply.png')
-        for learning_unit_year_test in learning_unit_list:
-             self.fill_by_id("id_learning_container_acronym", learning_unit_year_test.acronym)
-             self.click_on("bt_submit_vacant_attributions_search")
-             extension=".png"
-             pth_file = "/home/nizeyimana/Images/create_apply_to_{}{}".format(learning_unit_year_test.acronym, extension)
-             self.driver.get_screenshot_as_file(pth_file)
-             #alert_element = self.driver.find_element_by_css_selector("#pnl_charges > div.panel-body > div.alert.alert-info")
-             #not_found_message = alert_element.text
-             #print("Message {}".format(not_found_message))
-             #if not_found_message != ("Pas d'activité vacante correspondante"):
-             #    break
+        self.driver.save_screenshot('/home/nizeyimana/Images/create_apply.png')
+        for counter in range(0, 4):
+                    learning_unit_year_test = learning_unit_dict[counter]
+                    self.fill_by_id("id_learning_container_acronym", learning_unit_year_test.acronym)
+                    self.click_on("bt_submit_vacant_attributions_search")
+                    time.sleep(1)
+                    if counter == 3:
+                        alert_element = self.driver.find_element_by_css_selector("#pnl_charges > div.panel-body > div.alert.alert-info")
+                        not_found_message = alert_element.text
+                        print("Message {}".format(not_found_message))
+                        assert(not_found_message == "Pas d'activité vacante correspondante")
 
-        #postuler sur le premier cours
-
-        learning_unit_year_test=learning_unit_list[-1]
+        # postuler sur le premier cours
+        ue_key = 2
+        learning_unit_year_test = learning_unit_dict[ue_key]
         self.fill_by_id("id_learning_container_acronym", learning_unit_year_test.acronym)
         self.click_on("bt_submit_vacant_attributions_search")
         self.click_on("lnk_submit_attribution_new")
         #tester d'abord le bouton "annuler"
 
         self.driver.find_element_by_link_text('Annuler').click()
-        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/cancel_apply.png')
+        self.driver.save_screenshot('/home/nizeyimana/Images/cancel_apply.png')
         #retour à la nouvelle candidature pour un nouveau cours
 
         self.click_on("lnk_submit_attribution_new")
-        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/create_new_apply.png')
+        self.driver.save_screenshot('/home/nizeyimana/Images/create_new_apply.png')
         self.fill_by_id("id_learning_container_acronym",  learning_unit_year_test.acronym)
-        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/create_new_apply01.png')
+        self.driver.save_screenshot('/home/nizeyimana/Images/create_new_apply01.png')
         time.sleep(2)
         self.click_on("bt_submit_vacant_attributions_search")
         extension = ".png"
         pth_file = "/home/nizeyimana/Images/create_apply_to_{}{}".format(learning_unit_year_test.acronym, extension)
-        self.driver.get_screenshot_as_file(pth_file)
+        self.driver.save_screenshot(pth_file)
         self.click_on("lnk_submit_attribution_new")
 
         volume_lecturing_asked = "aba"
@@ -326,21 +307,22 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
 
         self.fill_by_id(id_element_practical_asked, volume_practical_asked)
         self.click_on("bt_submit")
-        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/invalide_input01.png')
-        time.sleep(3)
+        self.driver.save_screenshot('/home/nizeyimana/Images/invalide_input01.png')
+        time.sleep(2)
 
         element_error_01 = self.driver.find_element_by_css_selector(
             "#pnl_application_form > div.panel-body > form > div:nth-child(7) > div:nth-child(1) > span")
         assert(element_error_01.text =="Saisissez un nombre.")
 
 
-        print("Donnée invalide rejetée est : \"{}\" et le message de rejet est : \"{}\"".format(volume_lecturing_asked, element_error_01.text))
+        print('Donnée invalide rejetée est : "{}" et le message de rejet est : "{}"'.format(volume_lecturing_asked,
+                                                                                                element_error_01.text))
         element_error_02 = self.driver.find_element_by_css_selector(
             "#pnl_application_form > div.panel-body > form > div:nth-child(7) > div:nth-child(2) > span")
         assert (element_error_02.text == "Assurez-vous que cette valeur est supérieure ou égale à 0.")
 
 
-        print("Donnée invalide rejetée est : \"{}\" et le message de rejet est : \"{}\"".format(volume_practical_asked,element_error_02.text))
+        print('Donnée invalide rejetée est : "{}" et le message de rejet est : "{}"'.format(volume_practical_asked,element_error_02.text))
 
         volume_lecturing_asked = -10
         volume_practical_asked = "abc"
@@ -348,12 +330,12 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
 
         self.fill_by_id(id_element_practical_asked, volume_practical_asked)
         self.click_on("bt_submit")
-        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/invalide_input02.png')
 
+        self.driver.save_screenshot('/home/nizeyimana/Images/invalide_input02.png')
         element_error_01 = self.driver.find_element_by_css_selector(
             "#pnl_application_form > div.panel-body > form > div:nth-child(7) > div:nth-child(1) > span")
         assert (element_error_01.text == "Assurez-vous que cette valeur est supérieure ou égale à 0.")
-        print("Donnée invalide rejetée est : \"{}\" et le message de rejet est : \"{}\"".format(volume_lecturing_asked,
+        print('Donnée invalide rejetée est : "{}" et le message de rejet est : "{}"'.format(volume_lecturing_asked,
                                                                                         element_error_01.text))
 
         element_error_02 = self.driver.find_element_by_css_selector(
@@ -361,9 +343,9 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
 
         assert (element_error_02.text == "Saisissez un nombre.")
 
-        print("Donnée invalide rejetée est : \"{}\" et le message de rejet est : \"{}\"".format(volume_practical_asked,
+        print('Donnée invalide rejetée est : "{}" et le message de rejet est : "{}"'.format(volume_practical_asked,
                                                                                         element_error_02.text))
-        time.sleep(3)
+        time.sleep(2)
 
         volume_lecturing_asked = 70.01
         volume_practical_asked = 1003
@@ -371,12 +353,12 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
 
         self.fill_by_id(id_element_practical_asked, volume_practical_asked)
         self.click_on("bt_submit")
-        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/invalide_input002.png')
+        self.driver.save_screenshot('/home/nizeyimana/Images/invalide_input002.png')
 
         element_error_01 = self.driver.find_element_by_css_selector(
             "#pnl_application_form > div.panel-body > form > div:nth-child(6) > div:nth-child(1) > span")
         assert (element_error_01.text == "Assurez-vous qu'il n'y a pas plus de 1 chiffre après la virgule.")
-        print("Donnée invalide rejetée est : \"{}\" et le message de rejet est : \"{}\"".format(volume_lecturing_asked,
+        print('Donnée invalide rejetée est : "{}" et le message de rejet est : "{}"'.format(volume_lecturing_asked,
                                                                                                 element_error_01.text))
 
         element_error_02 = self.driver.find_element_by_css_selector(
@@ -384,9 +366,9 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
 
         assert (element_error_02.text == "Trop élevé (max: 70.0)")
 
-        print("Donnée invalide rejetée est : \"{}\" et le message de rejet est : \"{}\"".format(volume_practical_asked,
+        print('Donnée invalide rejetée est : "{}" et le message de rejet est : "{}"'.format(volume_practical_asked,
                                                                                                 element_error_02.text))
-        time.sleep(3)
+        time.sleep(2)
 
 
         volume_lecturing_asked = 35
@@ -395,35 +377,51 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
 
         self.fill_by_id("id_charge_practical_asked", volume_practical_asked)
         self.click_on("bt_submit")
-        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/valid_input.png')
-        time.sleep(3)
+        self.driver.save_screenshot('/home/nizeyimana/Images/valid_input.png')
+        time.sleep(2)
 
         tutor_application.validate_application(GLOBAL_ID, learning_unit_year_test.acronym, next_academic_year.year)
 
         #recharger pour voir si possibilité de modifier
         self.goto('applications_overview')
-        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/valider_for_epc.png')
+        self.driver.save_screenshot('/home/nizeyimana/Images/valider_for_epc.png')
 
-        time.sleep(3)
+        time.sleep(2)
         #tester le suppression
-        #self.click_on("lnk_application_delete_{}".format(len(learning_unit_list)*2))
-        #self.driver.get_screenshot_as_file('/home/nizeyimana/Images/suppr01.png')
-       #time.sleep(3)
+        self.click_on("lnk_application_delete_{}".format(ue_key*3))
+        alert = self.driver.switch_to.alert
+        #tester l'action d'annuler (bouton popup)
+        alert.dismiss()
+        time.sleep(2)
+        self.click_on("lnk_application_delete_{}".format(ue_key*3))
+        alert = self.driver.switch_to.alert
+        #tester l'action de confirmer
+        alert.accept()
+        self.driver.save_screenshot('/home/nizeyimana/Images/suppr01.png')
+        time.sleep(3)
+        #valider la suppression
+        learning_container_year = learning_container_dict[ue_key]
+        tutor_application.delete_application(tutor.person.global_id, learning_unit_year_test.acronym, learning_container_year.academic_year.year +1 )
+        time.sleep(3)
+
+        #pour verifier que la candidature sur l'UE est supprimée, rechercher l'UE pour verifier qu'il est vacant
+        self.goto('applications_overview')
+
 
         # puis tester la modification sur le dernier cours de la liste
-        self.click_on("lnk_application_edit_{}".format(len(learning_unit_list)*2))
-        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/edit_screen.png')
+        self.click_on("lnk_application_edit_{}".format(ue_key*3))
+        self.driver.save_screenshot('/home/nizeyimana/Images/edit_screen.png')
 
         proposition ="Proposition de Test"
         id_element_proposion = "id_course_summary"
         self.fill_by_id(id_element_proposion, proposition)
-        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/edite_proposition.png')
-        time.sleep(5)
+        self.driver.save_screenshot('/home/nizeyimana/Images/edite_proposition.png')
+        time.sleep(2)
         remark = "Remarque de Test"
         id_element_remark = "id_remark"
         self.fill_by_id("id_remark", remark)
-        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/remark_screen.png')
-        time.sleep(5)
+        self.driver.save_screenshot('/home/nizeyimana/Images/remark_screen.png')
+        time.sleep(2)
         self.click_on("bt_submit")
 
         print("Verification des modifications effectuées sur la candidature au {}".format(learning_unit_year_test.acronym))
@@ -431,11 +429,11 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
 
         # recharger pour voir si possibilité de modifier
         self.goto('applications_overview')
-        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/verifier_modif.png')
-        # puis tester la modification
-        self.click_on("lnk_application_edit_{}".format(len(learning_unit_list)*2))
-        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/afficher_modif_screen.png')
-        time.sleep(3)
+        self.driver.save_screenshot('/home/nizeyimana/Images/verifier_modif.png')
+        #puis tester la modification
+        self.click_on("lnk_application_edit_{}".format(ue_key*3))
+        self.driver.save_screenshot('/home/nizeyimana/Images/afficher_modif_screen.png')
+        time.sleep(2)
 
         #vérifier que les modif encodées ont été enregistrées
 
@@ -446,15 +444,15 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         assert (element_remark.text == remark)
         print("La remarque enregistrée est : {} ".format(element_remark.text))
 
-        time.sleep(3)
+        time.sleep(2)
         self.driver.find_element_by_link_text('Annuler').click()
-        self.driver.get_screenshot_as_file('/home/nizeyimana/Images/end_of_test_01.png')
+        self.driver.save_screenshot('/home/nizeyimana/Images/end_of_test_01.png')
 
-        print("TEST OK POUR \"NOUVELLE CANDIDATURE\"")
+        print('TEST OK POUR "NOUVELLE CANDIDATURE"')
 
         #tester le check box tout sélectionner/déselectionner et valider
 
-        print("DEBUT TEST POUR \"RECONDUIRE CANDIDATURE\"")
+        print('DEBUT TEST POUR "RECONDUIRE CANDIDATURE"')
 
         print("Sélectionner tout")
 
@@ -464,7 +462,7 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
             assert(element_check.is_selected())
             print("{} {}".format(counter+1, element_check.text))
 
-        print("Ok \"Sélectionner tout\"")
+        print('Ok : "Sélectionner tout"')
 
         print("Désélectionner tout")
 
@@ -474,8 +472,11 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
             assert (not element_check.is_selected())
             print("{} {}".format(counter + 1, element_check.text))
 
-        print("Ok \"Désélectionner tout\"")
+        print('Ok : "Désélectionner tout"')
 
+        self.click_on('chb_renew_all')
+        time.sleep(2)
+        self.click_on("bt_submit_attribution_renew")
 
 
 
