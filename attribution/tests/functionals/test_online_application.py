@@ -226,7 +226,7 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         learning_container_dict = {}
         volume_lecturing = 70
         volume_practical = 70
-        #4 UE, la dernière ne sera pas vacant, l'avant dernière sera vacant, les deux premières avec une possibilité de reconduction
+        #4 UE, la dernière ne sera pas vacante, l'avant dernière sera vacante, les deux premières avec une possibilité de reconduction
         for counter in range(0, 4):
             acronym = "LBIOL100{}".format(counter)
             l_container_current = self.create_learning_container(acronym, current_academic_year)
@@ -243,8 +243,8 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
             if counter < 3:
                 l_container_next_year = self.create_learning_container(acronym, next_academic_year)
 
-                l_container_next_year = self.link_components_and_learning_unit_year_to_container(l_container_next_year, acronym,
-                                                                         volume_lecturing, volume_practical, subtype)
+                l_container_next_year = self.link_components_and_learning_unit_year_to_container(l_container_next_year,
+                                                                         acronym, volume_lecturing, volume_practical, subtype)
             learning_unit_dict[counter] = learning_unit_year_current
             learning_container_dict[counter] = l_container_current
 
@@ -262,7 +262,7 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         self.open_browser_and_log_on_user('login', user)
         print("connected to : {}".format(self.driver.current_url))
         self.goto('applications_overview')
-        time.sleep(10)
+        time.sleep(3)
         self.click_on("lnk_submit_attribution_new")
         self.driver.save_screenshot('/home/nizeyimana/Images/create_apply.png')
         for counter in range(0, 4):
@@ -386,13 +386,13 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         self.goto('applications_overview')
         self.driver.save_screenshot('/home/nizeyimana/Images/valider_for_epc.png')
 
-        time.sleep(2)
+        time.sleep(3)
         #tester le suppression
         self.click_on("lnk_application_delete_{}".format(ue_key*3))
         alert = self.driver.switch_to.alert
         #tester l'action d'annuler (bouton popup)
         alert.dismiss()
-        time.sleep(2)
+        time.sleep(3)
         self.click_on("lnk_application_delete_{}".format(ue_key*3))
         alert = self.driver.switch_to.alert
         #tester l'action de confirmer
@@ -402,25 +402,40 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         #valider la suppression
         learning_container_year = learning_container_dict[ue_key]
         tutor_application.delete_application(tutor.person.global_id, learning_unit_year_test.acronym, learning_container_year.academic_year.year +1 )
-        time.sleep(3)
 
         #pour verifier que la candidature sur l'UE est supprimée, rechercher l'UE pour verifier qu'il est vacant
         self.goto('applications_overview')
+        time.sleep(3)
+        #créer de nouveau une nouvelle candidature sur le mëme cours
+        self.click_on("lnk_submit_attribution_new")
+        self.fill_by_id("id_learning_container_acronym", learning_unit_year_test.acronym)
+        self.click_on("bt_submit_vacant_attributions_search")
+        time.sleep(2)
+        self.click_on("lnk_submit_attribution_new")
+        time.sleep(3)
 
+        volume_lecturing_asked = 40.5
+        volume_practical_asked = 29.5
+        self.fill_by_id("id_charge_lecturing_asked", volume_lecturing_asked)
 
-        # puis tester la modification sur le dernier cours de la liste
-        self.click_on("lnk_application_edit_{}".format(ue_key*3))
-        self.driver.save_screenshot('/home/nizeyimana/Images/edit_screen.png')
+        self.fill_by_id("id_charge_practical_asked", volume_practical_asked)
+        self.click_on("bt_submit")
+        time.sleep(2)
 
-        proposition ="Proposition de Test"
+        tutor_application.validate_application(GLOBAL_ID, learning_unit_year_test.acronym, next_academic_year.year)
+
+        # recharger pour voir si possibilité de modifier
+        self.goto('applications_overview')
+
+        self.click_on("lnk_application_edit_{}".format(ue_key * 3))
+
+        proposition = "Proposition de Test 1"
         id_element_proposion = "id_course_summary"
         self.fill_by_id(id_element_proposion, proposition)
-        self.driver.save_screenshot('/home/nizeyimana/Images/edite_proposition.png')
         time.sleep(2)
-        remark = "Remarque de Test"
+        remark = "Remarque de Test 1"
         id_element_remark = "id_remark"
         self.fill_by_id("id_remark", remark)
-        self.driver.save_screenshot('/home/nizeyimana/Images/remark_screen.png')
         time.sleep(2)
         self.click_on("bt_submit")
 
