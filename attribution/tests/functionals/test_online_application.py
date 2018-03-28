@@ -1,6 +1,7 @@
 from random import randint, random
 
 import time
+import tempfile
 import datetime
 import pendulum
 from django.contrib.auth.models import Group, Permission
@@ -98,7 +99,7 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         # cls.display.stop()
         super().tearDownClass()
 
-        # retourne l'url de la page
+    # retourne l'url de la page
     def get_url_by_name(self, url_name, *args, **kwargs):
        return request.urljoin(self.live_server_url,
                               reverse(url_name, args=args, kwargs=kwargs))
@@ -109,22 +110,22 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         self.driver.get(url)
 
 
-    def fill_by_id(self,element_id, value):
+    def fill_by_id(self, element_id, value):
         element = self.driver.find_element_by_id(element_id)
         element.clear()
         element.send_keys(value)
 
-    def click_on(self,element_id):
+    def click_on(self, element_id):
         element = self.driver.find_element_by_id(element_id)
         element.click()
 
 
-    def login(self, username, password='password123'):
+    def login(self, username, password ='password123'):
         self.fill_by_id('id_username', username)
         self.fill_by_id('id_password', password)
         self.click_on('post_login_btn')
 
-    def open_browser_and_log_on_user(self,url, user):
+    def open_browser_and_log_on_user(self, url, user):
         url = self.goto(url)
         self.driver.save_screenshot('/home/nizeyimana/Images/start_url.png')
         self.login(user.username)
@@ -132,7 +133,7 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         # import pdb; pdb.set_trace()
         #assert 'OSIS' in self.driver.title
 
-    def link_components_and_learning_unit_year_to_container(self,l_container, acronym,
+    def link_components_and_learning_unit_year_to_container(self, l_container, acronym,
                                                              volume_lecturing=None,
                                                              volume_practical_exercices=None,
                                                              subtype=learning_unit_year_subtypes.FULL):
@@ -259,22 +260,41 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
 
         self.create_or_update_application_creation_on_existing_user(tutor, attributions, applications)
 
+        #créer un dossier temp
+        folder_name = tempfile.mkdtemp()
+        counter_img = 0
+        name_img_screen = 'online_apply'
+        ext="png"
         self.open_browser_and_log_on_user('login', user)
         print("connected to : {}".format(self.driver.current_url))
         self.goto('applications_overview')
         time.sleep(3)
         self.click_on("lnk_submit_attribution_new")
-        self.driver.save_screenshot('/home/nizeyimana/Images/create_apply.png')
+        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
+
         for counter in range(0, 4):
                     learning_unit_year_test = learning_unit_dict[counter]
                     self.fill_by_id("id_learning_container_acronym", learning_unit_year_test.acronym)
                     self.click_on("bt_submit_vacant_attributions_search")
-                    time.sleep(1)
+                    time.sleep(2)
                     if counter == 3:
                         alert_element = self.driver.find_element_by_css_selector("#pnl_charges > div.panel-body > div.alert.alert-info")
                         not_found_message = alert_element.text
                         print("Message {}".format(not_found_message))
                         assert(not_found_message == "Pas d'activité vacante correspondante")
+                    else:
+                        element_submit = self.driver.find_elements_by_id('lnk_submit_attribution_new')
+                        assert(element_submit[0].text=='Nouvelle candidature')
+                        time.sleep(2)
+
+        #tester si on met rien
+        element_input =self.driver.find_element_by_id('id_learning_container_acronym')
+        element_input.clear()
+        self.click_on("bt_submit_vacant_attributions_search")
+        time.sleep(3)
+        element_message = self.driver.find_element_by_css_selector ('#pnl_charges > div.panel-body > div > form > div.col-md-10 > p')
+        assert(element_message.text == 'Pour poser une candidature à un cours vacant dont vous n\'assuriez pas la charge, veuillez introduire ci-après le sigle du cours et cliquer sur le bouton \'loupe\'')
+        time.sleep(3)
 
         # postuler sur le premier cours
         ue_key = 2
@@ -285,18 +305,20 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         #tester d'abord le bouton "annuler"
 
         self.driver.find_element_by_link_text('Annuler').click()
-        self.driver.save_screenshot('/home/nizeyimana/Images/cancel_apply.png')
+        counter_img += 1
+        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
         #retour à la nouvelle candidature pour un nouveau cours
 
         self.click_on("lnk_submit_attribution_new")
-        self.driver.save_screenshot('/home/nizeyimana/Images/create_new_apply.png')
+        counter_img += 1
+        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
         self.fill_by_id("id_learning_container_acronym",  learning_unit_year_test.acronym)
-        self.driver.save_screenshot('/home/nizeyimana/Images/create_new_apply01.png')
+        counter_img += 1
+        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
         time.sleep(2)
         self.click_on("bt_submit_vacant_attributions_search")
-        extension = ".png"
-        pth_file = "/home/nizeyimana/Images/create_apply_to_{}{}".format(learning_unit_year_test.acronym, extension)
-        self.driver.save_screenshot(pth_file)
+        counter_img += 1
+        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
         self.click_on("lnk_submit_attribution_new")
 
         volume_lecturing_asked = "aba"
@@ -307,7 +329,8 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
 
         self.fill_by_id(id_element_practical_asked, volume_practical_asked)
         self.click_on("bt_submit")
-        self.driver.save_screenshot('/home/nizeyimana/Images/invalide_input01.png')
+        counter_img += 1
+        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
         time.sleep(2)
 
         element_error_01 = self.driver.find_element_by_css_selector(
@@ -331,7 +354,8 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         self.fill_by_id(id_element_practical_asked, volume_practical_asked)
         self.click_on("bt_submit")
 
-        self.driver.save_screenshot('/home/nizeyimana/Images/invalide_input02.png')
+        counter_img += 1
+        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
         element_error_01 = self.driver.find_element_by_css_selector(
             "#pnl_application_form > div.panel-body > form > div:nth-child(7) > div:nth-child(1) > span")
         assert (element_error_01.text == "Assurez-vous que cette valeur est supérieure ou égale à 0.")
@@ -353,7 +377,8 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
 
         self.fill_by_id(id_element_practical_asked, volume_practical_asked)
         self.click_on("bt_submit")
-        self.driver.save_screenshot('/home/nizeyimana/Images/invalide_input002.png')
+        counter_img += 1
+        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
 
         element_error_01 = self.driver.find_element_by_css_selector(
             "#pnl_application_form > div.panel-body > form > div:nth-child(6) > div:nth-child(1) > span")
@@ -377,42 +402,48 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
 
         self.fill_by_id("id_charge_practical_asked", volume_practical_asked)
         self.click_on("bt_submit")
-        self.driver.save_screenshot('/home/nizeyimana/Images/valid_input.png')
+        counter_img += 1
+        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
         time.sleep(2)
 
         tutor_application.validate_application(GLOBAL_ID, learning_unit_year_test.acronym, next_academic_year.year)
 
         #recharger pour voir si possibilité de modifier
         self.goto('applications_overview')
-        self.driver.save_screenshot('/home/nizeyimana/Images/valider_for_epc.png')
+        counter_img += 1
+        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
 
-        time.sleep(3)
+        time.sleep(2)
         #tester le suppression
         self.click_on("lnk_application_delete_{}".format(ue_key*3))
         alert = self.driver.switch_to.alert
         #tester l'action d'annuler (bouton popup)
         alert.dismiss()
-        time.sleep(3)
+        time.sleep(2)
+
+
         self.click_on("lnk_application_delete_{}".format(ue_key*3))
         alert = self.driver.switch_to.alert
         #tester l'action de confirmer
         alert.accept()
-        self.driver.save_screenshot('/home/nizeyimana/Images/suppr01.png')
-        time.sleep(3)
+        time.sleep(2)
+        counter_img += 1
+        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
+
         #valider la suppression
         learning_container_year = learning_container_dict[ue_key]
         tutor_application.delete_application(tutor.person.global_id, learning_unit_year_test.acronym, learning_container_year.academic_year.year +1 )
 
         #pour verifier que la candidature sur l'UE est supprimée, rechercher l'UE pour verifier qu'il est vacant
         self.goto('applications_overview')
-        time.sleep(3)
+        time.sleep(2)
         #créer de nouveau une nouvelle candidature sur le mëme cours
         self.click_on("lnk_submit_attribution_new")
         self.fill_by_id("id_learning_container_acronym", learning_unit_year_test.acronym)
         self.click_on("bt_submit_vacant_attributions_search")
         time.sleep(2)
         self.click_on("lnk_submit_attribution_new")
-        time.sleep(3)
+        time.sleep(2)
 
         volume_lecturing_asked = 40.5
         volume_practical_asked = 29.5
@@ -444,10 +475,12 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
 
         # recharger pour voir si possibilité de modifier
         self.goto('applications_overview')
-        self.driver.save_screenshot('/home/nizeyimana/Images/verifier_modif.png')
+        counter_img += 1
+        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
         #puis tester la modification
         self.click_on("lnk_application_edit_{}".format(ue_key*3))
-        self.driver.save_screenshot('/home/nizeyimana/Images/afficher_modif_screen.png')
+        counter_img += 1
+        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
         time.sleep(2)
 
         #vérifier que les modif encodées ont été enregistrées
@@ -461,7 +494,8 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
 
         time.sleep(2)
         self.driver.find_element_by_link_text('Annuler').click()
-        self.driver.save_screenshot('/home/nizeyimana/Images/end_of_test_01.png')
+        counter_img += 1
+        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
 
         print('TEST OK POUR "NOUVELLE CANDIDATURE"')
 
@@ -479,6 +513,8 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
 
         print('Ok : "Sélectionner tout"')
 
+        time.sleep(3)
+
         print("Désélectionner tout")
 
         self.click_on('chb_renew_all')
@@ -488,13 +524,16 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
             print("{} {}".format(counter + 1, element_check.text))
 
         print('Ok : "Désélectionner tout"')
+        time.sleep(3)
 
         self.click_on('chb_renew_all')
-        time.sleep(2)
         self.click_on("bt_submit_attribution_renew")
+        for counter_row in range(2, 4):
+             element_in_waiting_validation = self.driver.find_elements_by_css_selector('#pnl_applications > div.panel-body > table > tbody > tr:nth-child({}) > td:nth-child(1) > span.small.font-italic'.format(counter_row))
+             assert(element_in_waiting_validation[0].text.find('En attente de validation') > 0)
 
-
-
+        print("Envoi du message")
+        self.click_on('btn_applications_email_confirmtion')
 
 
 
