@@ -187,14 +187,16 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
 
 
     def create_or_update_application_creation_on_existing_user(self, tutor, attributions, applications):
-        return AttributionNewFactory(global_id=tutor.person.global_id, attributions=attributions, applications=applications)
+        return AttributionNewFactory(global_id=tutor.person.global_id,
+                                     attributions=attributions, applications=applications)
 
+    def save_screen(self, folder_name, name_img_screen, counter_img, ext):
+        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
 
     def test_01(self):
         user = self.create_user()
 
         groupe_list = []
-
         group = Group.objects.get_or_create(name='tutors')
         groupe_list.append(group)
 
@@ -222,7 +224,6 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
                                 end_date=end_date,
                                 reference=academic_calendar_type.TEACHING_CHARGE_APPLICATION)
 
-
         learning_unit_dict = {}
         learning_container_dict = {}
         volume_lecturing = 70
@@ -245,7 +246,10 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
                 l_container_next_year = self.create_learning_container(acronym, next_academic_year)
 
                 l_container_next_year = self.link_components_and_learning_unit_year_to_container(l_container_next_year,
-                                                                         acronym, volume_lecturing, volume_practical, subtype)
+                                                                                                 acronym,
+                                                                                                 volume_lecturing,
+                                                                                                 volume_practical,
+                                                                                                 subtype)
             learning_unit_dict[counter] = learning_unit_year_current
             learning_container_dict[counter] = l_container_current
 
@@ -270,7 +274,7 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         self.goto('applications_overview')
         time.sleep(3)
         self.click_on("lnk_submit_attribution_new")
-        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
+        self.save_screen(folder_name, name_img_screen, counter_img, ext)
 
         for counter in range(0, 4):
                     learning_unit_year_test = learning_unit_dict[counter]
@@ -306,19 +310,19 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
 
         self.driver.find_element_by_link_text('Annuler').click()
         counter_img += 1
-        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
+        self.save_screen(folder_name, name_img_screen, counter_img, ext)
         #retour à la nouvelle candidature pour un nouveau cours
 
         self.click_on("lnk_submit_attribution_new")
         counter_img += 1
-        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
+        self.save_screen(folder_name, name_img_screen, counter_img, ext)
         self.fill_by_id("id_learning_container_acronym",  learning_unit_year_test.acronym)
         counter_img += 1
-        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
+        self.save_screen(folder_name, name_img_screen, counter_img, ext)
         time.sleep(2)
         self.click_on("bt_submit_vacant_attributions_search")
         counter_img += 1
-        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
+        self.save_screen(folder_name, name_img_screen, counter_img, ext)
         self.click_on("lnk_submit_attribution_new")
 
         volume_lecturing_asked = "aba"
@@ -330,14 +334,12 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         self.fill_by_id(id_element_practical_asked, volume_practical_asked)
         self.click_on("bt_submit")
         counter_img += 1
-        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
+        self.save_screen(folder_name, name_img_screen, counter_img, ext)
         time.sleep(2)
 
         element_error_01 = self.driver.find_element_by_css_selector(
             "#pnl_application_form > div.panel-body > form > div:nth-child(7) > div:nth-child(1) > span")
         assert(element_error_01.text =="Saisissez un nombre.")
-
-
         print('Donnée invalide rejetée est : "{}" et le message de rejet est : "{}"'.format(volume_lecturing_asked,
                                                                                                 element_error_01.text))
         element_error_02 = self.driver.find_element_by_css_selector(
@@ -355,7 +357,7 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         self.click_on("bt_submit")
 
         counter_img += 1
-        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
+        self.save_screen(folder_name, name_img_screen, counter_img, ext)
         element_error_01 = self.driver.find_element_by_css_selector(
             "#pnl_application_form > div.panel-body > form > div:nth-child(7) > div:nth-child(1) > span")
         assert (element_error_01.text == "Assurez-vous que cette valeur est supérieure ou égale à 0.")
@@ -378,7 +380,7 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         self.fill_by_id(id_element_practical_asked, volume_practical_asked)
         self.click_on("bt_submit")
         counter_img += 1
-        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
+        self.save_screen(folder_name, name_img_screen, counter_img, ext)
 
         element_error_01 = self.driver.find_element_by_css_selector(
             "#pnl_application_form > div.panel-body > form > div:nth-child(6) > div:nth-child(1) > span")
@@ -403,7 +405,7 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         self.fill_by_id("id_charge_practical_asked", volume_practical_asked)
         self.click_on("bt_submit")
         counter_img += 1
-        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
+        self.save_screen(folder_name, name_img_screen, counter_img, ext)
         time.sleep(2)
 
         tutor_application.validate_application(GLOBAL_ID, learning_unit_year_test.acronym, next_academic_year.year)
@@ -411,7 +413,7 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         #recharger pour voir si possibilité de modifier
         self.goto('applications_overview')
         counter_img += 1
-        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
+        self.save_screen(folder_name, name_img_screen, counter_img, ext)
 
         time.sleep(2)
         #tester le suppression
@@ -428,7 +430,7 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         alert.accept()
         time.sleep(2)
         counter_img += 1
-        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
+        self.save_screen(folder_name, name_img_screen, counter_img, ext)
 
         #valider la suppression
         learning_container_year = learning_container_dict[ue_key]
@@ -476,11 +478,11 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         # recharger pour voir si possibilité de modifier
         self.goto('applications_overview')
         counter_img += 1
-        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
+        self.save_screen(folder_name, name_img_screen, counter_img, ext)
         #puis tester la modification
         self.click_on("lnk_application_edit_{}".format(ue_key*3))
         counter_img += 1
-        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
+        self.save_screen(folder_name, name_img_screen, counter_img, ext)
         time.sleep(2)
 
         #vérifier que les modif encodées ont été enregistrées
@@ -495,7 +497,7 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         time.sleep(2)
         self.driver.find_element_by_link_text('Annuler').click()
         counter_img += 1
-        self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
+        self.save_screen(folder_name, name_img_screen, counter_img, ext)
 
         print('TEST OK POUR "NOUVELLE CANDIDATURE"')
 
@@ -535,6 +537,7 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         print("Envoi du message")
         self.click_on('btn_applications_email_confirmtion')
 
+        #Aucun message n'a été envoyé : le modèle de message applications_confirmation_html n'existe pas.
 
 
 
