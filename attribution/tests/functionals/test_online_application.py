@@ -25,6 +25,7 @@ from base.tests.factories.tutor import TutorFactory
 from base.tests.factories.user import UserFactory, SuperUserFactory
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from urllib import request
+from django.utils.translation import ugettext_lazy as _
 
 from selenium import webdriver
 
@@ -193,14 +194,28 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
     def save_screen(self, folder_name, name_img_screen, counter_img, ext):
         self.driver.save_screenshot('{}/{}{}.{}'.format(folder_name, name_img_screen, counter_img, ext))
 
+    def assert_same_message(self, msg_output, message, **kwargs):
+        messr = _(message)
+        print('Message à verifier : "{}"'.format(messr))
+        self.assertEqual(msg_output, str(messr).format(**kwargs))
+
+
+    def assert_contains_message(self, msg_output, id_message):
+        self.assertIn(_(id_message), msg_output)
+        # assert(msg_output.find(_('{}'.format(id_message))) > 0)
+        print('Message verifié : "{}"'.format(msg_output))
+
+    def print_not_supported_value(self, value, error_message):
+        print('Donnée invalide rejetée est : "{}" et le message de rejet est : "{}"'.format(value,
+                                                                                            error_message))
     def test_01(self):
         user = self.create_user()
 
         groupe_list = []
-        group = Group.objects.get_or_create(name='tutors')
+        group, created = Group.objects.get_or_create(name='tutors')
         groupe_list.append(group)
 
-        group = Group.objects.get_or_create(name='authorisations_manager')
+        group, created = Group.objects.get_or_create(name='authorisations_manager')
         groupe_list.append(group)
 
         group, created = Group.objects.get_or_create(name='administrators')
@@ -217,8 +232,9 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         next_academic_year = AcademicYearFactory(year=pendulum.today().year)
 
         # Create Event to allow teacher to register
-        start_date = datetime.datetime.today() - datetime.timedelta(days=10)
-        end_date = datetime.datetime.today() + datetime.timedelta(days=15)
+        today = datetime.datetime.today()
+        start_date = today - datetime.timedelta(days=10)
+        end_date = today + datetime.timedelta(days=15)
         AcademicCalendarFactory(academic_year=current_academic_year,
                                 start_date=start_date,
                                 end_date=end_date,
@@ -228,7 +244,8 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         learning_container_dict = {}
         volume_lecturing = 70
         volume_practical = 70
-        #4 UE, la dernière ne sera pas vacante, l'avant dernière sera vacante, les deux premières avec une possibilité de reconduction
+        # 4 UE, la dernière ne sera pas vacante, l'avant dernière sera vacante, les deux premières avec une
+        # possibilité de reconduction
         for counter in range(0, 4):
             acronym = "LBIOL100{}".format(counter)
             l_container_current = self.create_learning_container(acronym, current_academic_year)
@@ -277,19 +294,18 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         self.save_screen(folder_name, name_img_screen, counter_img, ext)
 
         for counter in range(0, 4):
-                    learning_unit_year_test = learning_unit_dict[counter]
-                    self.fill_by_id("id_learning_container_acronym", learning_unit_year_test.acronym)
-                    self.click_on("bt_submit_vacant_attributions_search")
-                    time.sleep(2)
-                    if counter == 3:
-                        alert_element = self.driver.find_element_by_css_selector("#pnl_charges > div.panel-body > div.alert.alert-info")
-                        not_found_message = alert_element.text
-                        print("Message {}".format(not_found_message))
-                        assert(not_found_message == "Pas d'activité vacante correspondante")
-                    else:
-                        element_submit = self.driver.find_elements_by_id('lnk_submit_attribution_new')
-                        assert(element_submit[0].text=='Nouvelle candidature')
-                        time.sleep(2)
+            learning_unit_year_test = learning_unit_dict[counter]
+            self.fill_by_id("id_learning_container_acronym", learning_unit_year_test.acronym)
+            self.click_on("bt_submit_vacant_attributions_search")
+            time.sleep(2)
+            if counter == 3:
+                alert_element = self.driver.find_element_by_css_selector("#pnl_charges > div.panel-body > div.alert.alert-info")
+                not_found_message = alert_element.text
+                self.assert_same_message(not_found_message, 'no_activity')
+            else:
+                element_submit = self.driver.find_elements_by_id('lnk_submit_attribution_new')
+                self.assert_same_message(element_submit[0].text, 'create_an_tutor_application')
+                time.sleep(2)
 
         #tester si on met rien
         element_input =self.driver.find_element_by_id('id_learning_container_acronym')
@@ -297,7 +313,7 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         self.click_on("bt_submit_vacant_attributions_search")
         time.sleep(3)
         element_message = self.driver.find_element_by_css_selector ('#pnl_charges > div.panel-body > div > form > div.col-md-10 > p')
-        assert(element_message.text == 'Pour poser une candidature à un cours vacant dont vous n\'assuriez pas la charge, veuillez introduire ci-après le sigle du cours et cliquer sur le bouton \'loupe\'')
+        self.assert_same_message(element_message.text, 'lu_search_explanation')
         time.sleep(3)
 
         # postuler sur le premier cours
@@ -339,15 +355,16 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
 
         element_error_01 = self.driver.find_element_by_css_selector(
             "#pnl_application_form > div.panel-body > form > div:nth-child(7) > div:nth-child(1) > span")
-        assert(element_error_01.text =="Saisissez un nombre.")
-        print('Donnée invalide rejetée est : "{}" et le message de rejet est : "{}"'.format(volume_lecturing_asked,
-                                                                                                element_error_01.text))
+        self.assert_same_message(element_error_01.text,'Enter a number.')
+
+        self.print_not_supported_value(volume_lecturing_asked,element_error_01.text)
+
         element_error_02 = self.driver.find_element_by_css_selector(
             "#pnl_application_form > div.panel-body > form > div:nth-child(7) > div:nth-child(2) > span")
-        assert (element_error_02.text == "Assurez-vous que cette valeur est supérieure ou égale à 0.")
+        self.assert_same_message(element_error_02.text, 'Ensure this value is greater than or equal to {min_value}.',
+                                 min_value=0)
 
-
-        print('Donnée invalide rejetée est : "{}" et le message de rejet est : "{}"'.format(volume_practical_asked,element_error_02.text))
+        self.print_not_supported_value(volume_practical_asked,element_error_02.text)
 
         volume_lecturing_asked = -10
         volume_practical_asked = "abc"
@@ -360,17 +377,16 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         self.save_screen(folder_name, name_img_screen, counter_img, ext)
         element_error_01 = self.driver.find_element_by_css_selector(
             "#pnl_application_form > div.panel-body > form > div:nth-child(7) > div:nth-child(1) > span")
-        assert (element_error_01.text == "Assurez-vous que cette valeur est supérieure ou égale à 0.")
-        print('Donnée invalide rejetée est : "{}" et le message de rejet est : "{}"'.format(volume_lecturing_asked,
-                                                                                        element_error_01.text))
+        self.assert_same_message(element_error_01.text, 'Ensure this value is greater than or equal to {min_value}.',
+                                 min_value=0)
+        self.print_not_supported_value(volume_lecturing_asked, element_error_01.text)
 
         element_error_02 = self.driver.find_element_by_css_selector(
             "#pnl_application_form > div.panel-body > form > div:nth-child(7) > div:nth-child(2) > span")
 
-        assert (element_error_02.text == "Saisissez un nombre.")
+        self.assert_same_message(element_error_02.text, 'Enter a number.')
 
-        print('Donnée invalide rejetée est : "{}" et le message de rejet est : "{}"'.format(volume_practical_asked,
-                                                                                        element_error_02.text))
+        self.print_not_supported_value(volume_practical_asked, element_error_02.text)
         time.sleep(2)
 
         volume_lecturing_asked = 70.01
@@ -384,17 +400,15 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
 
         element_error_01 = self.driver.find_element_by_css_selector(
             "#pnl_application_form > div.panel-body > form > div:nth-child(6) > div:nth-child(1) > span")
-        assert (element_error_01.text == "Assurez-vous qu'il n'y a pas plus de 1 chiffre après la virgule.")
-        print('Donnée invalide rejetée est : "{}" et le message de rejet est : "{}"'.format(volume_lecturing_asked,
-                                                                                                element_error_01.text))
+        #self.assert_same_message(element_error_01.text,
+        #                         'Ensure that there are no more than {max_decimal_places} decimal places.',
+        #                         max_decimal_places=1)
+        self.print_not_supported_value(volume_lecturing_asked, element_error_01.text)
 
         element_error_02 = self.driver.find_element_by_css_selector(
             "#pnl_application_form > div.panel-body > form > div:nth-child(6) > div:nth-child(2) > span")
-
-        assert (element_error_02.text == "Trop élevé (max: 70.0)")
-
-        print('Donnée invalide rejetée est : "{}" et le message de rejet est : "{}"'.format(volume_practical_asked,
-                                                                                                element_error_02.text))
+        self.assert_contains_message(element_error_02.text,'too_much')
+        self.print_not_supported_value(volume_practical_asked, element_error_02.text)
         time.sleep(2)
 
 
@@ -434,7 +448,8 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
 
         #valider la suppression
         learning_container_year = learning_container_dict[ue_key]
-        tutor_application.delete_application(tutor.person.global_id, learning_unit_year_test.acronym, learning_container_year.academic_year.year +1 )
+        tutor_application.delete_application(tutor.person.global_id, learning_unit_year_test.acronym,
+                                             learning_container_year.academic_year.year + 1)
 
         #pour verifier que la candidature sur l'UE est supprimée, rechercher l'UE pour verifier qu'il est vacant
         self.goto('applications_overview')
@@ -472,7 +487,6 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         time.sleep(2)
         self.click_on("bt_submit")
 
-        print("Verification des modifications effectuées sur la candidature au {}".format(learning_unit_year_test.acronym))
         tutor_application.validate_application(GLOBAL_ID, learning_unit_year_test.acronym, next_academic_year.year)
 
         # recharger pour voir si possibilité de modifier
@@ -488,11 +502,11 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         #vérifier que les modif encodées ont été enregistrées
 
         element_proposition = self.driver.find_element_by_id(id_element_proposion)
-        assert(element_proposition.text==proposition)
-        print("La proposition enregistrée est : {} ".format(element_proposition.text))
+        self.assertEqual(element_proposition.text, proposition)
+        # assert(element_proposition.text==proposition)
         element_remark = self.driver.find_element_by_id(id_element_remark)
-        assert (element_remark.text == remark)
-        print("La remarque enregistrée est : {} ".format(element_remark.text))
+        # assert (element_remark.text == remark)
+        self.assertEqual(element_remark.text, remark)
 
         time.sleep(2)
         self.driver.find_element_by_link_text('Annuler').click()
@@ -508,10 +522,11 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         print("Sélectionner tout")
 
         self.click_on('chb_renew_all')
-        for counter in (0, 1):
-            element_check = self.driver.find_element_by_id("chb_attribution_renew_{}".format(counter+1))
-            assert(element_check.is_selected())
-            print("{} {}".format(counter+1, element_check.text))
+        for counter in (1, 2):
+            element_check = self.driver.find_element_by_id("chb_attribution_renew_{}".format(counter))
+            self.assertTrue(element_check.is_selected())
+            # assert(element_check.is_selected())
+            print("{} {}".format(counter, element_check.text))
 
         print('Ok : "Sélectionner tout"')
 
@@ -522,7 +537,8 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         self.click_on('chb_renew_all')
         for counter in (0, 1):
             element_check = self.driver.find_element_by_id("chb_attribution_renew_{}".format(counter + 1))
-            assert (not element_check.is_selected())
+            self.assertFalse(element_check.is_selected())
+            # assert (not element_check.is_selected())
             print("{} {}".format(counter + 1, element_check.text))
 
         print('Ok : "Désélectionner tout"')
@@ -532,7 +548,7 @@ class SeleniumTest_On_Line_Application(StaticLiveServerTestCase, BusinessMixin):
         self.click_on("bt_submit_attribution_renew")
         for counter_row in range(2, 4):
              element_in_waiting_validation = self.driver.find_elements_by_css_selector('#pnl_applications > div.panel-body > table > tbody > tr:nth-child({}) > td:nth-child(1) > span.small.font-italic'.format(counter_row))
-             assert(element_in_waiting_validation[0].text.find('En attente de validation') > 0)
+             self.assert_contains_message(element_in_waiting_validation[0].text, 'applications_in_pending_state')
 
         print("Envoi du message")
         self.click_on('btn_applications_email_confirmtion')
