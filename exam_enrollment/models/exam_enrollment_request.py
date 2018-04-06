@@ -31,8 +31,8 @@ from django.db import models
 
 
 class ExamEnrollmentRequestdAdmin(admin.ModelAdmin):
-    list_display = ('student',)
-    fieldsets = ((None, {'fields': ('student', 'document')}),)
+    list_display = ('student', 'offer_year_acronym')
+    fieldsets = ((None, {'fields': ('student', 'document', 'offer_year_acronym')}),)
     search_fields = ['student__registration_id']
     raw_id_fields = ('student',)
 
@@ -56,9 +56,9 @@ def insert_or_update_document(acronym, student, document):
     return exam_enrollment_request_object
 
 
-def find_by_student(student):
+def find_by_student(student, acronym):
     try:
-        exam_enrollments_request = ExamEnrollmentRequest.objects.get(student=student)
+        exam_enrollments_request = ExamEnrollmentRequest.objects.get(student=student, offer_year_acronym=acronym)
         return exam_enrollments_request
     except ObjectDoesNotExist:
         return None
